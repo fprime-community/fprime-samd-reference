@@ -64,24 +64,6 @@ module CuriosityReference {
 
         instance tlm
 
-        # ----------------------------------------------------------------------
-        # Telemetry packets
-        #
-        # Samd21.StaticTlmPacketizer builds its channel -> packet table at compile
-        # time from this block, so EVERY telemetry channel of EVERY instance above
-        # must appear either in a packet or in the `omit` list. An unaccounted
-        # channel is a hard FPP error, not a warning -- which is the point: adding a
-        # channel to a component forces a decision about whether it is downlinked.
-        #
-        # Packet ids are positional (Error = 0, Tester = 1, Health = 2). The group
-        # number selects the downlink group the packetizer assigns the packet to.
-        #
-        # NOTE: nothing is wired to `tlm.pktSendIn`, so packets are sent only on
-        # ground command (TLM.SEND_PKT). To downlink a packet periodically instead,
-        # connect a rate group to `tlm.pktSendIn[<packet id>]` and raise
-        # Samd21.NUM_TLM_PACKETS (default 1) above the largest port-driven packet id.
-        # ----------------------------------------------------------------------
-
         telemetry packets Main {
 
             packet Error group 1 {
