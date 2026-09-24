@@ -125,9 +125,18 @@ template it renders.
 - **`docs/`** — `architecture.md`, `Component-Checklist.md`
 - **`scripts/`** — J-Link flashing
 - **`lib/`** — git submodules: `fprime`, `fprime-baremetal`, `fprime-samd`
-- **`.github/`** — workflows (`build.yml` cross build + ELF measurement, `size-report.yml`
-  posts the PR comment, `unit-tests.yml` native tests, `format-check.yml`), plus
-  `scripts/size_report.py`
+- **`.github/`** — workflows only (`build.yml` cross build + ELF measurement,
+  `size-report.yml` posts the PR comment, `unit-tests.yml` native tests,
+  `format-check.yml`). The machinery they call lives in
+  `lib/fprime-samd/.github/actions/` — composite actions shared with `fprime-samd`'s own
+  CI and with the other deployments that consume it, plus
+  `lib/fprime-samd/.github/scripts/size_report.py`. See
+  `lib/fprime-samd/.github/actions/README.md`; the short version is that a consumer on
+  GitHub Enterprise Server cannot call a `workflow_call` hosted on github.com, but a
+  local-path composite action in the checked-out submodule works on any instance. What
+  stays in these workflow files is what is genuinely deployment-specific: the deployment
+  and toolchain names, the linker script that sets the memory budget, the baseline policy,
+  the comment marker, and the triggers.
 
 **The configuration directory must never be renamed to `config/`.** The repository root is
 on the include path ahead of the build cache's override copies, and framework code includes

@@ -48,24 +48,12 @@ jobs:
           submodules: recursive
           filter: blob:none
 
-      - name: "Setup Python"
-        uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            lib/fprime/requirements.txt
-            lib/fprime-samd/requirements.txt
-
-      - name: "Install Python dependencies"
+      - name: "Set up F Prime"
         # Installing the project requirements rather than fprime-tools alone is what pins
         # clang-format to the version lib/fprime/requirements.txt names. A different
         # clang-format produces different output, and the check would then disagree with
         # what contributors get locally.
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        uses: ./lib/fprime-samd/.github/actions/setup-fprime
 
       - name: "Check C++ formatting"
         run: |
@@ -74,16 +62,16 @@ jobs:
           # shellcheck disable=SC2086
           fprime-util format --check --dirs ${CHECKED_DIRS}
 
-      - name: "Check the CI helper scripts"
-        # Dependency-free smoke test of .github/scripts: byte-compile everything, then
-        # prove the size reporter's entry point still parses its arguments. No linter is
-        # pinned here on purpose -- the scripts are stdlib-only and this keeps the format
-        # job from acquiring a Python toolchain of its own.
+      - name: "Check the shared CI scripts"
+        # size_report.py now lives in the fprime-samd submodule, shared with that library's
+        # own CI and with the other deployments that consume it. It is still smoke-tested
+        # from here because a submodule bump that breaks it breaks *this* repository's size
+        # comment, and `selftest` catches a mis-parsed linker script -- which would
+        # otherwise silently report the wrong memory budget rather than fail.
         run: |
-          python3 -m compileall -q .github/scripts
-          python3 .github/scripts/size_report.py --help > /dev/null
-          python3 .github/scripts/size_report.py measure --help > /dev/null
-          python3 .github/scripts/size_report.py render --help > /dev/null
+          python3 -m compileall -q lib/fprime-samd/.github/scripts
+          python3 lib/fprime-samd/.github/scripts/size_report.py --help > /dev/null
+          python3 lib/fprime-samd/.github/scripts/size_report.py selftest
 
       - name: "Comment on the pull request in case of failure"
         # Skipped for forks: a fork pull request carries a read-only GITHUB_TOKEN and the

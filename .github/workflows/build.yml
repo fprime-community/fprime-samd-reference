@@ -2,6 +2,13 @@
 # measures the flash/RAM footprint of the resulting ELF against the pull request's base
 # commit.
 #
+# Most of the machinery lives in lib/fprime-samd/.github/actions, shared with fprime-samd's
+# own CI and with the other deployments that consume that library. What stays here is what
+# is genuinely specific to this repository: which deployment and toolchain to build, the
+# linker script that sets the memory budget, the baseline policy, and the triggers. See
+# lib/fprime-samd/.github/actions/README.md for why those are composite actions in the
+# submodule rather than reusable workflows.
+#
 # SECURITY: THIS WORKFLOW RUNS UNTRUSTED CODE AND MUST NEVER HOLD A WRITE TOKEN
 # ----------------------------------------------------------------------------------
 # Its whole purpose is to compile a contributor's C++ and run this project's CMake and
@@ -36,31 +43,11 @@ concurrency:
 env:
   DEPLOYMENT: CuriosityReference
   TOOLCHAIN: microchip_curiosity
-
-  # These four versions are pinned together and must stay in lockstep with
-  # lib/fprime-samd/cmake/toolchain/samd21-bare-toolchain.cmake, which discovers the
-  # compiler and the CMSIS headers by *absolute path* with the tool versions as literal
-  # path components and a `message(FATAL_ERROR ...)` else-branch. Do not float
-  # ADAFRUIT_SAMD_VERSION to "latest": a core bump that moves any tool version silently
-  # breaks path resolution at configure time.
-  #
-  # Note that `apt install gcc-arm-none-eabi` cannot substitute for this. It lands in
-  # /usr/bin, which the toolchain file does not probe, and -- more fundamentally -- the
-  # CMSIS block has no non-Arduino branch at all, so a bare compiler action would still
-  # fail on the missing CMSIS-Atmel SAMD21 device headers (sam.h / samd.h).
-  ADAFRUIT_SAMD_VERSION: "1.7.17"
-  ARM_GCC_VERSION: "9-2019q4"
-  CMSIS_VERSION: "5.4.0"
-  CMSIS_ATMEL_VERSION: "1.2.2"
-
-  # arduino-cli is only used as a downloader for the above. Pinned for reproducibility;
-  # the install script is fetched from the matching tag rather than from `master` so the
-  # bootstrap is not a floating remote script.
-  ARDUINO_CLI_VERSION: "1.5.1"
-  # Replaces the `arduino-cli config init` + `config add` dance in .devcontainer/Dockerfile.
-  ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: "https://adafruit.github.io/arduino-board-index/package_adafruit_index.json"
-  # Bump to force a cold toolchain install, e.g. after editing the prune list below.
-  ARDUINO_CACHE_EPOCH: "v1"
+  # The memory budget is read from this script's MEMORY block rather than hardcoded, so it
+  # stays correct if the part or the bootloader reservation ever changes.
+  LINKER_SCRIPT: lib/fprime-samd/cmake/toolchain/samd21/curiosity_nano/linker_scripts/flash_without_bootloader.ld
+  TARGET_LABEL: SAMD21G17D
+  REPORT_MARKER: samd21-size-report
 
 jobs:
   build:
@@ -74,232 +61,54 @@ jobs:
       - name: "Checkout repository"
         uses: actions/checkout@v7
         with:
-          # Submodules must be present before `pip install -r requirements.txt`: the root
-          # requirements.txt fans out to ./lib/fprime/requirements.txt and
-          # ./lib/fprime-samd/requirements.txt.
+          # Submodules must be present before anything else: the root requirements.txt
+          # fans out to ./lib/fprime/requirements.txt and
+          # ./lib/fprime-samd/requirements.txt, and the shared composite actions are
+          # referenced by local path out of lib/fprime-samd.
           submodules: recursive
           # lib/fprime's history is large and nothing here needs it.
           filter: blob:none
 
-      - name: "Resolve HOME-dependent toolchain paths"
-        # samd21-bare-toolchain.cmake hardcodes `$ENV{HOME}/.arduino15`, so the Arduino
-        # data directory cannot be relocated. Deriving these from $HOME rather than
-        # hardcoding /home/runner keeps the workflow valid on self-hosted runners too.
-        run: |
-          {
-            echo "ARDUINO_DIRECTORIES_DATA=${HOME}/.arduino15"
-            echo "ARDUINO_TOOLS_DIR=${HOME}/.arduino15/packages/adafruit/tools"
-            echo "ARM_TOOLCHAIN_BIN=${HOME}/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/${ARM_GCC_VERSION}/bin"
-          } >> "${GITHUB_ENV}"
+      - name: "Set up F Prime"
+        uses: ./lib/fprime-samd/.github/actions/setup-fprime
 
-      - name: "Setup Python"
-        uses: actions/setup-python@v7
-        with:
-          # 3.11 is a hard floor: the fprime-samd static-tlm-packetizer and
-          # static-cmd-dispatcher autocoders import `tomllib`.
-          python-version: '3.12'
-          cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            lib/fprime/requirements.txt
-            lib/fprime-samd/requirements.txt
-
-      - name: "Install Python dependencies"
-        # lib/fprime/requirements.txt supplies fprime-tools, fprime-fpp and the pip-provided
-        # cmake and ninja (so no apt packages are needed). lib/fprime-samd/requirements.txt
-        # supplies fprime-fpp-python, fprime-fpp-query and fprime-cpp-codegen, which the
-        # static_tlm_packet / static_cmd_dispatch build autocoders require -- their
-        # fpp_query.cmake runs `fprime-version-check` and hard-errors on a mismatch.
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      # ---------------------------------------------------------------------------------
-      # ARM toolchain + CMSIS, provisioned the same way .devcontainer/Dockerfile does it
-      # so that CI and local development cannot drift.
-      #
-      # Only the `tools` tree is cached. The adafruit:samd *hardware* core is deliberately
-      # not retained: microchip_curiosity.cmake points CURIOSITY_VARIANT_DIR at
-      # lib/fprime-samd/cmake/toolchain/samd21/curiosity_nano, which contains only
-      # linker_scripts/flash_without_bootloader.ld, and sam.h/samd.h come from CMSIS-Atmel.
-      # arduino-cli has no tools-only mode, so a cold run downloads the core anyway.
-      #
-      # Escape hatch if Adafruit's board index ever becomes a flake source: the three
-      # archives can be fetched directly and extracted into
-      # ~/.arduino15/packages/adafruit/tools/<name>/<version>/ for a byte-identical layout.
-      #   arm-none-eabi-gcc 9-2019q4
-      #     github.com/adafruit/arduino-board-index/releases/download/build-tools/gcc-arm-none-eabi-9-2019-q4-major-x86_64-linux.tar.bz2
-      #   CMSIS 5.4.0
-      #     github.com/ARM-software/CMSIS_5/archive/5.4.0.tar.gz
-      #   CMSIS-Atmel 1.2.2
-      #     github.com/adafruit/ArduinoModule-CMSIS-Atmel/releases/download/v1.2.2/CMSIS-Atmel-1.2.2.tar.bz2
-      # ---------------------------------------------------------------------------------
-      - name: "Restore ARM toolchain and CMSIS"
-        id: tools-cache
-        uses: actions/cache/restore@v6
-        with:
-          path: ${{ env.ARDUINO_TOOLS_DIR }}
-          # The toolchain file's hash is part of the key on purpose: it is what encodes
-          # the expected 9-2019q4 / 5.4.0 / 1.2.2 paths. Without it, bumping those in
-          # fprime-samd would still hit a stale cache and die at the verify step below.
-          key: samd21-tools-${{ runner.os }}-${{ env.ADAFRUIT_SAMD_VERSION }}-${{ env.ARDUINO_CACHE_EPOCH }}-${{ hashFiles('lib/fprime-samd/cmake/toolchain/samd21-bare-toolchain.cmake') }}
-
-      - name: "Install arduino-cli"
-        if: steps.tools-cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p "${RUNNER_TEMP}/arduino-cli/bin"
-          curl -fsSL "https://raw.githubusercontent.com/arduino/arduino-cli/v${ARDUINO_CLI_VERSION}/install.sh" \
-            | BINDIR="${RUNNER_TEMP}/arduino-cli/bin" sh -s "${ARDUINO_CLI_VERSION}"
-          echo "${RUNNER_TEMP}/arduino-cli/bin" >> "${GITHUB_PATH}"
-
-      - name: "Install the adafruit:samd toolchain"
-        if: steps.tools-cache.outputs.cache-hit != 'true'
-        run: |
-          arduino-cli core update-index
-          arduino-cli core install "adafruit:samd@${ADAFRUIT_SAMD_VERSION}"
-
-      - name: "Prune unused toolchain payload"
-        if: steps.tools-cache.outputs.cache-hit != 'true'
-        # The tools tree lands at roughly 944 MB, of which nearly half is dead weight.
-        # This drops it to roughly 496 MB, halving both the cache upload and every
-        # subsequent restore. Everything removed here is documentation, the
-        # CoreValidation/RTOS/Pack/NN/DAP sources, the prebuilt ARM and IAR DSP libraries
-        # (only Lib/GCC is on the linker search path) and the DSP sources (only
-        # DSP/Include is on the compiler include path). The three include directories and
-        # Lib/GCC are asserted by the verify step below, and the cache is only *saved*
-        # after the real build has succeeded against the pruned tree.
-        run: |
-          CMSIS="${ARDUINO_TOOLS_DIR}/CMSIS/${CMSIS_VERSION}"
-          du -sh "${ARDUINO_TOOLS_DIR}"
-          rm -rf \
-            "${CMSIS}/docs" \
-            "${CMSIS}/CMSIS_EW2018.pdf" \
-            "${CMSIS}/CMSIS/DoxyGen" \
-            "${CMSIS}/CMSIS/CoreValidation" \
-            "${CMSIS}/CMSIS/RTOS" \
-            "${CMSIS}/CMSIS/RTOS2" \
-            "${CMSIS}/CMSIS/Pack" \
-            "${CMSIS}/CMSIS/NN" \
-            "${CMSIS}/CMSIS/DAP" \
-            "${CMSIS}/CMSIS/Utilities" \
-            "${CMSIS}/CMSIS/Driver" \
-            "${CMSIS}/CMSIS/Core_A" \
-            "${CMSIS}/CMSIS/DSP/DSP_Lib_TestSuite" \
-            "${CMSIS}/CMSIS/DSP/Examples" \
-            "${CMSIS}/CMSIS/DSP/Projects" \
-            "${CMSIS}/CMSIS/DSP/Source" \
-            "${CMSIS}/CMSIS/Lib/ARM" \
-            "${CMSIS}/CMSIS/Lib/IAR" \
-            "${ARDUINO_TOOLS_DIR}/arm-none-eabi-gcc/${ARM_GCC_VERSION}/share/doc"
-          du -sh "${ARDUINO_TOOLS_DIR}"
-
-      - name: "Verify toolchain layout"
-        # samd21-bare-toolchain.cmake finds all of these by absolute path and raises
-        # FATAL_ERROR if any is missing, so fail here instead with a message that names
-        # the offending path.
-        #
-        # Nothing has to be exported for the build itself: CMAKE_{C,CXX,ASM}_COMPILER,
-        # CMAKE_{AR,NM,SIZE,OBJCOPY,RANLIB} and all three include directories are absolute
-        # paths computed inside the toolchain file. PATH is extended only so that the
-        # readelf / size / nm steps further down use the *matching* binutils rather than
-        # whatever happens to be on the runner.
-        run: |
-          for required in \
-            "${ARM_TOOLCHAIN_BIN}/arm-none-eabi-gcc" \
-            "${ARM_TOOLCHAIN_BIN}/arm-none-eabi-readelf" \
-            "${ARM_TOOLCHAIN_BIN}/arm-none-eabi-size" \
-            "${ARM_TOOLCHAIN_BIN}/arm-none-eabi-nm" \
-            "${ARDUINO_TOOLS_DIR}/CMSIS/${CMSIS_VERSION}/CMSIS/Core/Include/core_cm0plus.h" \
-            "${ARDUINO_TOOLS_DIR}/CMSIS/${CMSIS_VERSION}/CMSIS/DSP/Include" \
-            "${ARDUINO_TOOLS_DIR}/CMSIS/${CMSIS_VERSION}/CMSIS/Lib/GCC" \
-            "${ARDUINO_TOOLS_DIR}/CMSIS-Atmel/${CMSIS_ATMEL_VERSION}/CMSIS/Device/ATMEL/sam.h" ; do
-            if [ ! -e "${required}" ]; then
-              echo "::error::missing toolchain component: ${required}"
-              exit 1
-            fi
-          done
-          echo "${ARM_TOOLCHAIN_BIN}" >> "${GITHUB_PATH}"
-
-      - name: "Report tool versions"
-        run: |
-          arm-none-eabi-gcc --version | head -1
-          cmake --version | head -1
-          ninja --version
-          fpp-check --help > /dev/null 2>&1 && echo "fpp ok"
-
-      # ---------------------------------------------------------------------------------
-      # Build the pull request head, or the pushed main commit.
-      #
-      # fprime-util is used rather than `cmake --preset microchip_curiosity` because only
-      # fprime-util applies settings.ini's library_locations and default_cmake_options
-      # (FPRIME_ENABLE_FRAMEWORK_UTS=OFF, FPRIME_ENABLE_AUTOCODER_UTS=OFF). The
-      # CMakePresets path is exercised separately, by unit-tests.yml.
-      #
-      # `-p CuriosityReference` scopes the first build to the deployment so that a broken
-      # deployment fails fast, with the narrowest possible log. The `all` target is built
-      # immediately afterwards as a second step -- cheap, because the object files are
-      # already warm.
-      # ---------------------------------------------------------------------------------
-      - name: "Generate the build cache"
-        run: fprime-util generate "${TOOLCHAIN}"
+      - name: "Set up the ARM toolchain and CMSIS"
+        id: toolchain
+        uses: ./lib/fprime-samd/.github/actions/setup-samd-toolchain
 
       - name: "Build ${{ env.DEPLOYMENT }}"
-        run: fprime-util build -j"$(nproc)" -p "${DEPLOYMENT}" "${TOOLCHAIN}"
-
-      - name: "Build the all target"
-        # Regression gate on the ~40-line EXCLUDE_FROM_ALL list in the root CMakeLists.txt,
-        # whose entire purpose is making `all` viable. Without this nothing ever checks it:
-        # an exclusion that becomes unnecessary is never removed, a newly-broken module is
-        # never caught, and because every entry is guarded by `if (TARGET ...)`, a submodule
-        # bump that renames a target degrades to a status message -- so the rot would be
-        # invisible by construction. This also catches any module the deployment does not
-        # link silently ceasing to compile.
-        #
-        # Verified green locally at the pinned submodule commits: 0 failed edges.
-        run: ninja -C "build-fprime-automatic-${TOOLCHAIN}" all
-
-      - name: "Save ARM toolchain and CMSIS"
-        # Saved only after a real build has succeeded against the (possibly pruned) tree,
-        # so a bad prune can never be cached. actions/cache's implicit post-job save would
-        # not give that guarantee.
-        #
-        # Two known operational wrinkles, both harmless and both deliberately non-fatal:
-        #  * A fork pull request has a read-only token and cannot write any cache, so it
-        #    always takes the cold path and pays the full download every run.
-        #  * The Actions cache is a 10 GB per-repository LRU. A ~500 MB toolchain entry
-        #    plus one baseline entry per base SHA will churn, and heavy baseline traffic
-        #    can evict the toolchain entry, silently reverting to the cold path.
-        if: success() && steps.tools-cache.outputs.cache-hit != 'true'
-        continue-on-error: true
-        uses: actions/cache/save@v6
+        id: build
+        uses: ./lib/fprime-samd/.github/actions/build-deployment
         with:
-          path: ${{ env.ARDUINO_TOOLS_DIR }}
-          key: samd21-tools-${{ runner.os }}-${{ env.ADAFRUIT_SAMD_VERSION }}-${{ env.ARDUINO_CACHE_EPOCH }}-${{ hashFiles('lib/fprime-samd/cmake/toolchain/samd21-bare-toolchain.cmake') }}
+          deployment: ${{ env.DEPLOYMENT }}
+          toolchain: ${{ env.TOOLCHAIN }}
+          # Regression gate on the EXCLUDE_FROM_ALL list in the root CMakeLists.txt, whose
+          # entire purpose is making `all` viable. Without this nothing ever checks it: an
+          # exclusion that becomes unnecessary is never removed, a newly-broken module is
+          # never caught, and because every entry is guarded by `if (TARGET ...)`, a
+          # submodule bump that renames a target degrades to a status message -- so the rot
+          # would be invisible by construction. This also catches any module the deployment
+          # does not link silently ceasing to compile.
+          build-all: "true"
 
-      - name: "Locate the linked ELF"
-        id: elf
-        run: |
-          ELF="build-artifacts/${TOOLCHAIN}/${DEPLOYMENT}/bin/${DEPLOYMENT}.elf"
-          if [ ! -f "${ELF}" ]; then
-            ELF="$(find "build-fprime-automatic-${TOOLCHAIN}" -name "${DEPLOYMENT}.elf" -print -quit)"
-          fi
-          if [ ! -f "${ELF}" ]; then
-            echo "::error::could not locate ${DEPLOYMENT}.elf"
-            exit 1
-          fi
-          echo "path=${ELF}" >> "${GITHUB_OUTPUT}"
+      - name: "Save the ARM toolchain cache"
+        # Saved only after a real build has succeeded against the (possibly pruned) tree,
+        # so a bad prune can never be cached.
+        if: success()
+        uses: ./lib/fprime-samd/.github/actions/save-samd-toolchain
+        with:
+          tools-dir: ${{ steps.toolchain.outputs.tools-dir }}
+          cache-key: ${{ steps.toolchain.outputs.cache-key }}
+          cache-hit: ${{ steps.toolchain.outputs.cache-hit }}
 
       - name: "Measure the current ELF"
-        # `measure` exits non-zero if the image overflows flash or RAM, which turns a
-        # budget blow-out into a red check rather than just a comment. Values from the
-        # github context are passed through `env` rather than interpolated into the script
-        # body so that nothing from the event payload can be spliced into the shell.
-        env:
-          ELF: ${{ steps.elf.outputs.path }}
-        run: |
-          mkdir -p size
-          python3 .github/scripts/size_report.py measure "${ELF}" size/current.json \
-            --nm size/current.nm
+        uses: ./lib/fprime-samd/.github/actions/measure-elf
+        with:
+          elf: ${{ steps.build.outputs.elf }}
+          output: size/current.json
+          nm: size/current.nm
+          linker-script: ${{ env.LINKER_SCRIPT }}
+          label: ${{ env.TARGET_LABEL }}
 
       # ---------------------------------------------------------------------------------
       # Baseline.
@@ -345,26 +154,32 @@ jobs:
         id: baseline-build
         if: github.event_name == 'pull_request' && steps.baseline-cache.outputs.cache-hit != 'true' && steps.baseline-checkout.outcome == 'success'
         continue-on-error: true
-        working-directory: baseline-src
         # The baseline is built with the *head's* Python environment, on the same runner,
         # with the same compiler, so the delta is attributable to the diff. The known
-        # limitation: if this pull request bumps a submodule or a pinned autocoder
-        # version, fpp_query.cmake's version check rejects the baseline tree and this step
-        # fails -- which is precisely the case where a cross-version delta would have been
-        # a lie. It then degrades to absolute-only, which is the honest answer.
-        run: |
-          fprime-util generate "${TOOLCHAIN}"
-          fprime-util build -j"$(nproc)" -p "${DEPLOYMENT}" "${TOOLCHAIN}"
+        # limitation: if this pull request bumps a submodule or a pinned autocoder version,
+        # fpp_query.cmake's version check rejects the baseline tree and this step fails --
+        # which is precisely the case where a cross-version delta would have been a lie. It
+        # then degrades to absolute-only, which is the honest answer.
+        #
+        # Note this uses the HEAD copy of the action, not baseline-src's, so a pull request
+        # that edits the shared actions still gets a comparable baseline build.
+        uses: ./lib/fprime-samd/.github/actions/build-deployment
+        with:
+          deployment: ${{ env.DEPLOYMENT }}
+          toolchain: ${{ env.TOOLCHAIN }}
+          working-directory: baseline-src
+          build-all: "false"
 
       - name: "Measure the baseline ELF"
         id: baseline-measure
         if: github.event_name == 'pull_request' && steps.baseline-cache.outputs.cache-hit != 'true' && steps.baseline-build.outcome == 'success'
         continue-on-error: true
-        run: |
-          mkdir -p baseline-size
-          python3 .github/scripts/size_report.py measure \
-            "baseline-src/build-artifacts/${TOOLCHAIN}/${DEPLOYMENT}/bin/${DEPLOYMENT}.elf" \
-            baseline-size/current.json
+        uses: ./lib/fprime-samd/.github/actions/measure-elf
+        with:
+          elf: baseline-src/${{ steps.baseline-build.outputs.elf }}
+          output: baseline-size/current.json
+          linker-script: ${{ env.LINKER_SCRIPT }}
+          label: ${{ env.TARGET_LABEL }}
 
       - name: "Save the baseline measurement"
         # Two pull requests racing on the same base SHA means the loser gets a 409; that
@@ -395,31 +210,39 @@ jobs:
       # ---------------------------------------------------------------------------------
       # Render. Uploaded as an artifact; size-report.yml posts it.
       # ---------------------------------------------------------------------------------
-      - name: "Render the size report"
+      - name: "Determine the baseline provenance"
+        id: origin
         if: github.event_name == 'pull_request'
         env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BASELINE_CACHE_HIT: ${{ steps.baseline-cache.outputs.cache-hit }}
-          BASELINE_MEASURE_OUTCOME: ${{ steps.baseline-measure.outcome }}
+          CACHE_HIT: ${{ steps.baseline-cache.outputs.cache-hit }}
+          MEASURED: ${{ steps.baseline-measure.outcome }}
         run: |
-          if [ "${BASELINE_CACHE_HIT}" = "true" ]; then
-            ORIGIN="restored from the base-commit size cache"
-          elif [ "${BASELINE_MEASURE_OUTCOME}" = "success" ]; then
-            ORIGIN="built from this pull request's base commit in this run"
+          if [ "${CACHE_HIT}" = "true" ]; then
+            echo "text=restored from the base-commit size cache" >> "${GITHUB_OUTPUT}"
+          elif [ "${MEASURED}" = "success" ]; then
+            echo "text=built from this pull request's base commit in this run" >> "${GITHUB_OUTPUT}"
           else
-            ORIGIN="unavailable"
+            echo "text=unavailable" >> "${GITHUB_OUTPUT}"
           fi
-          python3 .github/scripts/size_report.py render \
-            --current size/current.json \
-            --baseline baseline-size/current.json \
-            --nm size/current.nm \
-            --output size/size-report.md \
-            --head-sha "${HEAD_SHA}" \
-            --base-sha "${BASE_SHA}" \
-            --baseline-origin "${ORIGIN}"
-          cat size/size-report.md >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: "Render the size report"
+        if: github.event_name == 'pull_request'
+        uses: ./lib/fprime-samd/.github/actions/render-size-report
+        with:
+          current: size/current.json
+          baseline: baseline-size/current.json
+          nm: size/current.nm
+          output: size/size-report.md
+          head-sha: ${{ github.event.pull_request.head.sha }}
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          baseline-origin: ${{ steps.origin.outputs.text }}
+          marker: ${{ env.REPORT_MARKER }}
+
+      - name: "Record the pull request number"
+        if: github.event_name == 'pull_request'
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
           # Read back and verified against the real head SHA by size-report.yml before it
           # is trusted; see the security notes there.
           echo "${PR_NUMBER}" > size/pr-number.txt
