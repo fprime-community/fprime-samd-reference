@@ -1,0 +1,16 @@
+power on
+
+si SWD
+speed 4000
+connect
+
+r // Reset
+
+h // Halt
+
+// Load the binary
+loadbin {bin_file}, {flash_addr}
+
+r // Reset
+g // Go
+q // Quit

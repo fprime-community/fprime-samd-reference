@@ -1,0 +1,126 @@
+# Native (host x86-64) unit tests. No ARM toolchain and no CMSIS are needed: this build
+# targets the host, so it is a fraction of the cost of the cross build in build.yml.
+#
+# WHAT THIS JOB GATES
+# ----------------------------------------------------------------------------------------
+# No component under CuriosityReference/ registers a unit test yet -- every
+# `register_fprime_ut(...)` there is still commented out. The job is a hard gate anyway,
+# because three things that ARE load-bearing get validated on every pull request:
+#
+#   * The 7 library unit tests that fprime-samd and fprime-baremetal ship and that build and
+#     pass against this repo's config (Drv Adc/Rtc/Usart/I2c/Gpio, Svc Framer,
+#     Svc TlmLinearChan). That is real smoke coverage for the drivers this reference exists
+#     to demonstrate, and it is worth keeping green.
+#   * `config-samd-reference/CMakeLists.txt` drops the PlatformCfg.fpp override under
+#     BUILD_TESTING, because the POSIX OSAL's handles are larger than the SAMD21-tuned
+#     FW_*_HANDLE_MAX_SIZE maxima. That branch has no other consumer; if it regresses,
+#     nothing else in CI notices.
+#   * The FPP sources have to parse and autocode for a native platform, not just for Samd21.
+#
+# The `all` target IS built here, and it is green. A native-ut `all` also pulls in
+# lib/fprime-baremetal's and lib/fprime-samd's own unit-test executables, three of which do
+# not compile at the pinned commits (MicroFsFullTest, MicroFsFileTest,
+# fprime-samd_Svc_TmFramer_ut_exe); those three are EXCLUDE_FROM_ALL in the root
+# CMakeLists.txt. A fourth, fprime-samd_Svc_ThinBufferManager_ut_exe, builds but aborts on an
+# upstream bug (a hardcoded allocator bucket size measured on Darwin), so it is filtered out
+# of the ctest preset. Both sets are documented where they are declared, including the
+# conditions for removing them. Individual exclusions were chosen over switching the library
+# UT flags off wholesale so the 7 passing tests above keep running.
+#
+# When the first project unit test lands, no CI change is needed: discovery below is by grep,
+# and `ctest --preset native-ut` picks it up automatically.
+
+name: "Unit Tests"
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  native-ut:
+    name: "Native unit tests"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          filter: blob:none
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            lib/fprime/requirements.txt
+            lib/fprime-samd/requirements.txt
+
+      - name: "Install Python dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: "Generate the native unit-test build cache"
+        # settings.ini sets no `default_ut_toolchain`, so fprime-util falls back to
+        # "native" and lands the cache in build-fprime-automatic-native-ut -- the same
+        # directory the `native-ut` CMake preset declares as its binaryDir, which is why
+        # the ctest preset below works against a cache fprime-util generated.
+        #
+        # fprime-util is used rather than `cmake --preset native-ut` because only
+        # fprime-util applies settings.ini's default_cmake_options, and
+        # FPRIME_ENABLE_FRAMEWORK_UTS=OFF is what keeps the ~150 framework unit tests out
+        # of this build entirely.
+        run: fprime-util generate --ut
+
+      - name: "Run the project's unit tests"
+        # Discovery is by grep rather than a hardcoded module list so that a new component
+        # with a live register_fprime_ut is picked up with no CI change. `fprime-util check`
+        # builds the module's unit-test executable and then runs it through ctest.
+        run: |
+          mapfile -t UT_MODULES < <(
+            grep -rlE '^[[:space:]]*register_fprime_ut' \
+              --include=CMakeLists.txt CuriosityReference config-samd-reference \
+              2>/dev/null | xargs -r -n1 dirname | sort -u
+          )
+          if [ "${#UT_MODULES[@]}" -eq 0 ]; then
+            echo "::notice::no project-owned unit tests are registered yet; the native-ut build cache was generated and validated, nothing was run"
+            exit 0
+          fi
+          for module in "${UT_MODULES[@]}"; do
+            echo "::group::${module}"
+            fprime-util check -j"$(nproc)" -p "${module}"
+            echo "::endgroup::"
+          done
+
+      - name: "Build the native-ut all target"
+        # Regression gate on the EXCLUDE_FROM_ALL list in the root CMakeLists.txt. Without
+        # this, an exclusion that becomes unnecessary is never removed and a newly-broken
+        # module is never caught -- the `if (TARGET ...)` guards mean a submodule bump that
+        # renames a target degrades to a status message, so the rot would be invisible.
+        # Verified green locally: 0 failed edges.
+        run: ninja -C build-fprime-automatic-native-ut all
+
+      - name: "Run the unit tests"
+        # Uses the documented `native-ut` test preset, so CMakePresets.json is exercised by
+        # CI as well as the fprime-util path, and the preset's exclude filter applies.
+        # Verified locally: 7/7 pass.
+        run: ctest --preset native-ut
+
+      - name: "List the registered tests"
+        # Informational only, and on failure the most useful thing in the log: shows what
+        # ctest knows about in this cache, which is the quickest way to see whether a newly
+        # added register_fprime_ut took effect or whether the exclude filter is stale.
+        if: always()
+        continue-on-error: true
+        run: ctest --preset native-ut --show-only

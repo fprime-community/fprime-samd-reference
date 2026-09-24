@@ -1,0 +1,103 @@
+# Based on fprime-baremetal's format-check.yml, which is in turn based on
+# https://github.com/nasa/fprime/blob/devel/.github/workflows/format-check.yml
+#
+# Note for anyone porting this back: fprime-baremetal's copy lives in a directory literally
+# named `workflows  ` (with two trailing spaces), so it has never actually run. Do not
+# replicate that.
+
+name: "Code Format Check"
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Project-owned C++ only; lib/ holds submodules, which are formatted by their own repos.
+  #
+  # Both directories are listed on purpose. config-samd-reference/ carries hand-edited
+  # copies of upstream configuration headers and is exactly the place where stray
+  # indentation and missing trailing newlines creep in, so leaving it out of the check
+  # would miss the most likely offender.
+  #
+  # Not covered by any automated check: the .fpp sources. fpp-format rewrites rather than
+  # verifies, so there is no `--check` mode to wire up here.
+  CHECKED_DIRS: >-
+    CuriosityReference
+    config-samd-reference
+
+jobs:
+  cpp-formatting:
+    name: "C++ formatting"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v7
+        with:
+          # `fprime-util format` resolves .clang-format through settings.ini's
+          # framework_path, so lib/fprime must be present. The nested requirements.txt
+          # files installed below live in the submodules too.
+          submodules: recursive
+          filter: blob:none
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            lib/fprime/requirements.txt
+            lib/fprime-samd/requirements.txt
+
+      - name: "Install Python dependencies"
+        # Installing the project requirements rather than fprime-tools alone is what pins
+        # clang-format to the version lib/fprime/requirements.txt names. A different
+        # clang-format produces different output, and the check would then disagree with
+        # what contributors get locally.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: "Check C++ formatting"
+        run: |
+          # CHECKED_DIRS holds several directories and `--dirs` takes a list, so the word
+          # splitting here is deliberate.
+          # shellcheck disable=SC2086
+          fprime-util format --check --dirs ${CHECKED_DIRS}
+
+      - name: "Check the CI helper scripts"
+        # Dependency-free smoke test of .github/scripts: byte-compile everything, then
+        # prove the size reporter's entry point still parses its arguments. No linter is
+        # pinned here on purpose -- the scripts are stdlib-only and this keeps the format
+        # job from acquiring a Python toolchain of its own.
+        run: |
+          python3 -m compileall -q .github/scripts
+          python3 .github/scripts/size_report.py --help > /dev/null
+          python3 .github/scripts/size_report.py measure --help > /dev/null
+          python3 .github/scripts/size_report.py render --help > /dev/null
+
+      - name: "Comment on the pull request in case of failure"
+        # Skipped for forks: a fork pull request carries a read-only GITHUB_TOKEN and the
+        # createComment call would 403. The check itself still shows up as a failed status
+        # with the same command in its log, so nothing is lost but the convenience.
+        if: failure() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v9
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'C++ formatting checks failed on the submitted code. To fix, run this ' +
+                    'command on your branch:\n\n```bash\n' +
+                    'git diff --name-only origin/main...HEAD | fprime-util format --stdin\n```'
+            })

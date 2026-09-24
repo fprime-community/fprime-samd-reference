@@ -1,0 +1,9 @@
+[submodule "fprime"]
+	path = lib/fprime
+	url = https://github.com/Kronos3/fprime.git
+[submodule "fprime-baremetal"]
+	path = lib/fprime-baremetal
+	url = https://github.com/fprime-community/fprime-baremetal.git
+[submodule "fprime-samd"]
+	path = lib/fprime-samd
+	url = https://github.com/fprime-community/fprime-samd.git

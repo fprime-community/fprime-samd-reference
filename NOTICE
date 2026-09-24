@@ -1,0 +1,20 @@
+fprime-samd-reference
+Copyright 2026 The fprime-samd-reference contributors.
+
+This product is licensed under the Apache License, Version 2.0. See the LICENSE
+file in this repository for the full text.
+
+This product is derived from F Prime (F´), Copyright California Institute of
+Technology ("Caltech"). U.S. Government sponsorship acknowledged. All rights
+reserved.
+
+Neither the name of Caltech nor its operating division, the Jet Propulsion
+Laboratory, nor the names of its contributors may be used to endorse or promote
+products derived from this software without specific prior written permission.
+
+This repository does not redistribute its dependencies. F Prime, fprime-baremetal
+and fprime-samd are consumed as git submodules under lib/ and remain under their
+own licenses and copyrights; see lib/<dependency>/LICENSE. The ARM GCC toolchain,
+CMSIS and CMSIS-Atmel headers required to build for the SAMD21 are downloaded at
+setup time from Microchip, ARM and Adafruit, and are likewise not redistributed
+here.

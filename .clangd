@@ -1,0 +1,16 @@
+Diagnostics:
+  Suppress: [anon_bitfield_qualifiers]
+CompileFlags:
+  Remove: [
+    "-findirect-inlining",
+    "-fdevirtualize-at-ltrans"
+  ]
+  Add:
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/../../../../arm-none-eabi/include/c++/9.2.1
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/../../../../arm-none-eabi/include/c++/9.2.1/arm-none-eabi
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/../../../../arm-none-eabi/include/c++/9.2.1/backward
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/include
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/include-fixed
+    - -I/home/tumbar/.arduino15/packages/adafruit/tools/arm-none-eabi-gcc/9-2019q4/bin/../lib/gcc/arm-none-eabi/9.2.1/../../../../arm-none-eabi/include
+    - -ferror-limit=0
+  CompilationDatabase: build-fprime-automatic-microchip_curiosity

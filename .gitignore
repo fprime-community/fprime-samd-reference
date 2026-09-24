@@ -1,0 +1,35 @@
+# fprime items
+logs/
+cmake-build-*
+build-artifacts/
+build-fprime-*
+*-template
+*.template.cpp
+*.template.hpp
+
+# Misc
+/venv/
+/fprime-venv/
+/.idea/
+.DS_Store
+
+__pycache__
+
+# Coverage
+**/coverage/
+*.gcov
+lcov.info
+!**/test/ut/output/*.gcov
+
+# Generated unit test scaffolding (`fprime-util impl --ut` drops these at the module
+# root; the checked-in copies live under test/ut/)
+GTestBase.*
+TesterBase.*
+Tester.*
+!**/test/ut/GTestBase.*
+!**/test/ut/TesterBase.*
+!**/test/ut/Tester.*
+
+# CI size-report scratch output (size_report.py default --output path)
+size-report.md
+*.nm
