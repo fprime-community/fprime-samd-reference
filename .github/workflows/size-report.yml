@@ -1,5 +1,10 @@
 # Posts, and keeps updating, the sticky flash/RAM size comment produced by build.yml.
 #
+# The logic lives in lib/fprime-samd/.github/actions/post-size-comment, shared with
+# fprime-samd's own CI and the other deployments that consume it. What cannot be shared is
+# the trigger: a `workflow_run` filter names workflows in the *same* repository, so every
+# repository that wants a size comment needs its own copy of this shim.
+#
 # WHY THIS IS A SEPARATE WORKFLOW
 # ----------------------------------------------------------------------------------------
 # On a `pull_request` event from a fork the GITHUB_TOKEN is read-only regardless of the
@@ -27,23 +32,16 @@
 #      the audience for a public reference repository and they would be the ones who get
 #      nothing. It is used in format-check.yml, where the stakes are much lower.
 #
-# RESIDUAL RISK OF OPTION 2, AND THE MITIGATIONS
+# The residual risk of option 2 -- a contributor controls both the artifact's markdown and
+# the pull request number it declares -- and the mitigations for it (head-SHA
+# verification, body clamping, marker charset validation) are documented in full on the
+# post-size-comment action.
+#
+# NOTE ON THE ACTION'S PROVENANCE
 # ----------------------------------------------------------------------------------------
-# For a `pull_request` event GitHub runs the *pull request's* copy of build.yml, so a
-# contributor controls both the artifact's markdown and the pull request number it
-# declares. Two consequences, each handled below:
-#
-#   * An unguarded reporter can be made to post on an arbitrary pull request in the repo.
-#     The "Resolve and verify the pull request" step therefore ignores the claimed number
-#     unless that pull request's head SHA matches `workflow_run.head_sha`.
-#   * The markdown body is untrusted text. GitHub sanitises comment bodies (no scripts,
-#     no markup escape), so the worst case is a cosmetic or misleading comment on the
-#     contributor's own pull request. The body is also clamped here so an oversized
-#     artifact cannot 422 the API and turn the reporter permanently red.
-#
-# Combined with `contents: read` (never write), no `checkout` at all, and no secrets other
-# than GITHUB_TOKEN, the worst case even if the SHA check were bypassed is a comment --
-# never a repository write and never code execution.
+# This job holds a writable token, so unlike every other job here it must NOT use the pull
+# request's copy of the shared action. The checkout below omits `ref`, which pins it to the
+# default branch, and takes only that one directory.
 #
 # BOOTSTRAPPING CAVEAT
 # ----------------------------------------------------------------------------------------
@@ -77,106 +75,22 @@ jobs:
       # Required to download an artifact that belongs to a different workflow run.
       actions: read
     steps:
-      - name: "Download the size report artifact"
-        id: download
-        continue-on-error: true
-        uses: actions/download-artifact@v8
+      - name: "Checkout the reporting action"
+        uses: actions/checkout@v7
         with:
-          name: size-report
-          path: size-report
+          # No `ref`, so this is the default branch -- never the pull request's code, which
+          # matters because this job holds a writable token. The action lives in the
+          # fprime-samd submodule, pinned to whatever commit the default branch records.
+          #
+          # Deliberately a plain checkout rather than a sparse one: sparse-checkout applies
+          # only to the superproject, so a pattern naming a path *inside* a submodule does
+          # not narrow the submodule clone, and getting the gitlink included takes more
+          # care than it saves on a job with nothing else to do.
+          submodules: recursive
+          filter: blob:none
+
+      - name: "Post or update the sticky comment"
+        uses: ./lib/fprime-samd/.github/actions/post-size-comment
+        with:
           run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: "Resolve and verify the pull request"
-        id: pr
-        if: steps.download.outcome == 'success'
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const fs = require('fs');
-            // build.yml uploads a single directory, so these sit at the artifact root.
-            const numberPath = 'size-report/pr-number.txt';
-            const bodyPath = 'size-report/size-report.md';
-            const MARKER = '<!-- samd21-size-report -->';
-            // Well under GitHub's hard 65536-character cap; the renderer already clamps,
-            // this is the defence against an artifact that did not come from it.
-            const BODY_LIMIT = 64000;
-
-            if (!fs.existsSync(numberPath) || !fs.existsSync(bodyPath)) {
-              core.info('artifact carries no pr-number.txt / size-report.md; nothing to post');
-              return;
-            }
-
-            const claimed = parseInt(fs.readFileSync(numberPath, 'utf8').trim(), 10);
-            if (!Number.isInteger(claimed) || claimed <= 0) {
-              core.warning('artifact declared a non-numeric pull request number; refusing to comment');
-              return;
-            }
-
-            // The artifact comes from an untrusted build, so the declared number is only
-            // trusted if that pull request's head really is the commit this run was for.
-            let pull;
-            try {
-              ({ data: pull } = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: claimed,
-              }));
-            } catch (error) {
-              core.warning(`could not read pull request #${claimed}: ${error.message}`);
-              return;
-            }
-            const expected = context.payload.workflow_run.head_sha;
-            if (pull.head.sha !== expected) {
-              core.warning(
-                `pull request #${claimed} head is ${pull.head.sha} but the build ran on ` +
-                `${expected}; refusing to comment`);
-              return;
-            }
-
-            let body = fs.readFileSync(bodyPath, 'utf8');
-            if (body.trim() === '') {
-              core.warning('rendered report is empty; refusing to comment');
-              return;
-            }
-            if (body.length > BODY_LIMIT) {
-              body = body.slice(0, BODY_LIMIT) +
-                "\n\n<sub>[clamped by the reporter workflow to fit GitHub's comment size " +
-                'limit]</sub>\n';
-              fs.writeFileSync(bodyPath, body);
-              core.warning(`report body was ${body.length} characters and has been clamped`);
-            }
-            core.setOutput('number', String(claimed));
-
-            // Stickiness: find the marker the renderer embeds and edit that comment in
-            // place, so N pushes leave exactly one comment.
-            const comments = await github.paginate(github.rest.issues.listComments, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: claimed,
-              per_page: 100,
-            });
-            const existing = comments.find(
-              (comment) => comment.user.type === 'Bot' && (comment.body || '').includes(MARKER));
-            if (existing !== undefined) {
-              core.setOutput('comment_id', String(existing.id));
-            }
-
-      - name: "Update the existing size comment"
-        if: steps.pr.outputs.comment_id != ''
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          comment-id: ${{ steps.pr.outputs.comment_id }}
-          body-path: size-report/size-report.md
-          edit-mode: replace
-
-      - name: "Post a new size comment"
-        if: steps.pr.outputs.number != '' && steps.pr.outputs.comment_id == ''
-        uses: peter-evans/create-or-update-comment@v5
-        with:
-          issue-number: ${{ steps.pr.outputs.number }}
-          body-path: size-report/size-report.md
-
-      - name: "Note a build that produced no report"
-        if: github.event.workflow_run.conclusion == 'failure' && steps.download.outcome != 'success'
-        run: echo "::notice::the build failed and produced no size report; nothing to comment"
+          head-sha: ${{ github.event.workflow_run.head_sha }}

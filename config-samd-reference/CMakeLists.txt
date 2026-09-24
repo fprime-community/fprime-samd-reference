@@ -11,6 +11,20 @@ else()
     set(PLATFORM_CFG_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/PlatformCfg.fpp")
 endif()
 
+# Same treatment, different reason: this override SHADOWS
+# lib/fprime-samd/default/samd-config/FramerConfig.hpp rather than extending it, and this
+# repository is the harness fprime-samd's own CI builds in. A constant omitted here is
+# therefore undeclared for the library's unit tests too -- which is how adding
+# MAX_TRACKED_APIDS upstream broke them. Under BUILD_TESTING the library's tests see the
+# library's defaults, which is what they are written against. Flight builds keep the
+# trimmed FRAMER_TX_BUFFER_SIZE, and must still declare everything the cross `all` target
+# compiles, TmFramer included.
+if(BUILD_TESTING)
+    set(SAMD_FRAMER_CFG_OVERRIDE "")
+else()
+    set(SAMD_FRAMER_CFG_OVERRIDE "${CMAKE_CURRENT_LIST_DIR}/FramerConfig.hpp")
+endif()
+
 register_fprime_config(
         config-samd-reference
     CONFIGURATION_OVERRIDES
@@ -25,6 +39,6 @@ register_fprime_config(
         "${CMAKE_CURRENT_LIST_DIR}/PassiveRateGroupCfg.hpp"
         "${CMAKE_CURRENT_LIST_DIR}/StaticMemoryConfig.hpp"
         # --- overrides lib/fprime-samd/default/samd-config ---
-        "${CMAKE_CURRENT_LIST_DIR}/FramerConfig.hpp"
+        ${SAMD_FRAMER_CFG_OVERRIDE}
     INTERFACE
 )

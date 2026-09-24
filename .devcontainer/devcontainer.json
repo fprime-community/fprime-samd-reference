@@ -7,9 +7,9 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "ms-vscode.cpptools",
         "ms-vscode.cmake-tools",
-        "jet-propulsion-laboratory.fpp"
+        "jet-propulsion-laboratory.fpp",
+        "llvm-vs-code-extensions.vscode-clangd"
       ],
       "settings": {
         "cmake.configureOnOpen": false
