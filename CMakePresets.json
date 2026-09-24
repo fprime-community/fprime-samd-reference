@@ -62,9 +62,8 @@
       },
       "filter": {
         "exclude": {
-          "_comment1": "MicroFsFullTest / MicroFsFileTest / TmFramer_ut_exe are EXCLUDE_FROM_ALL in CMakeLists.txt because the libraries they link do not compile at the pinned fprime-baremetal / fprime-samd commits. register_fprime_ut() registers add_test() regardless, so the binaries would never exist and ctest would report them as NOT RUN. Drop these when the exclusions go.",
-          "_comment2": "ThinBufferManager_ut_exe BUILDS fine but aborts on an upstream fprime-samd bug, not a defect in this repo: its tester hardcodes TEST_ALLOCATOR_BUCKET_SIZE = 840, sized from a measured 48-bytes-per-slot sizeof(AllocatedBuffer) on Darwin x86_64/arm64. On Linux x86_64 the slot is wider, the bucket overflows and StaticMallocator asserts during setup. Reproduced identically against moonfall-power-manager, so it predates this port. Remove once fprime-samd derives that constant with sizeof() instead of a hardcoded number.",
-          "name": "^(MicroFsFullTest|MicroFsFileTest|fprime-samd_Svc_TmFramer_ut_exe|fprime-samd_Svc_ThinBufferManager_ut_exe)$"
+          "_comment1": "MicroFsFullTest / MicroFsFileTest are EXCLUDE_FROM_ALL in CMakeLists.txt because Os::Baremetal::MicroFs does not compile at the pinned fprime-baremetal commit. register_fprime_ut() registers add_test() regardless, so the binaries would never exist and ctest would report them as NOT RUN. Drop these when that exclusion goes.",
+          "name": "^(MicroFsFullTest|MicroFsFileTest)$"
         }
       },
       "execution": {

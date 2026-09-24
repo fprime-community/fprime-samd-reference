@@ -37,17 +37,23 @@ set(SAMD_REFERENCE_EXCLUDED_MODULES
     Svc_FpySequencer
     Svc_WasmSequencer
 
+    # Os::Baremetal::MicroFs does not compile at the pinned fprime-baremetal commit: its
+    # implementation predates the Os::FileSystem/Os::Directory interface split in
+    # lib/fprime and no longer satisfies it. Nothing here uses a filesystem.
     Os_Baremetal_MicroFs
     Os_File_Baremetal_MicroFs_Implementation
-    fprime-samd_Svc_TmFramer
+
+    # Duplicates Samd21::StaticCmdDispatcher, which this deployment uses instead (dispatch
+    # is a compile-time table here -- see docs/architecture.md). Excluded to keep `all`
+    # from building a second, unused dispatcher.
     fprime-baremetal_Svc_PassiveCmdDispatcher
 )
 
 if (BUILD_TESTING)
     list(APPEND SAMD_REFERENCE_EXCLUDED_MODULES
+        # Unit tests of the MicroFs modules excluded above; they cannot link without them.
         MicroFsFullTest
         MicroFsFileTest
-        fprime-samd_Svc_TmFramer_ut_exe
     )
 endif()
 
