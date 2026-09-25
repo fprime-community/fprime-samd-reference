@@ -1,10 +1,6 @@
 # ======================================================================
 # \title  config-samd-reference/FpConfig.fpp
 # \brief  FPP alias configuration file
-#
-# Overrides lib/fprime/default/config/FpConfig.fpp in full (CONFIGURATION_OVERRIDES
-# replaces the file wholesale, it does not merge), so every alias below is a straight
-# copy of the F Prime default except FwSizeStoreType, called out below.
 # ======================================================================
 
 ####
@@ -64,13 +60,7 @@ type FwPrmIdType = FwIdType
 
 @ The type used to serialize a size value.
 @ Note: fixed at U16 rather than the F Prime default (an alias of FwSizeType, i.e.
-@ PlatformSizeType). PlatformSizeType is U32 on the SAMD21 cross build but U64 on the
-@ Linux native-ut build (lib/fprime/cmake/platform/{samd21,unix}/Platform/PlatformTypes.fpp),
-@ and native-ut's resulting 8-byte FwSizeStoreType plus FW_TLM_STRING_MAX_SIZE /
-@ FW_PARAM_STRING_MAX_SIZE (2, in FpConstants.fpp) exceeds FW_TLM_BUFFER_MAX_SIZE /
-@ FW_PARAM_BUFFER_MAX_SIZE (8), tripping the static_assert in Fw/FPrimeBasicTypes.hpp.
-@ Fixing the width keeps it constant across platforms and matches this deployment's
-@ FW_TLM_BUFFER_MAX_SIZE / FW_PARAM_BUFFER_MAX_SIZE budget.
+@ PlatformSizeType).
 dictionary type FwSizeStoreType = U16
 
 @ The type used to serialize a time context value
