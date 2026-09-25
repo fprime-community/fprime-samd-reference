@@ -5,12 +5,18 @@
 # ----------------------------------------------------------------------------------------
 # No component under CuriosityReference/ registers a unit test yet -- every
 # `register_fprime_ut(...)` there is still commented out. The job is a hard gate anyway,
-# because three things that ARE load-bearing get validated on every pull request:
+# because four things that ARE load-bearing get validated on every pull request:
 #
 #   * The 9 library unit tests that fprime-samd and fprime-baremetal ship and that build and
 #     pass against this repo's config (Drv Adc/Rtc/Usart/I2c/Gpio, Svc Framer, Svc TmFramer,
 #     Svc ThinBufferManager, Svc TlmLinearChan). That is real smoke coverage for the drivers
 #     this reference exists to demonstrate, and it is worth keeping green.
+#   * CmdTlmTest_Top_ut_exe, this repo's own gtest-driven test topology (see
+#     CmdTlmTest/CMakeLists.txt): it exercises the commanding and telemetry path
+#     CuriosityReference ships -- uplink through frameAccumulator/deframer/fprimeRouter to
+#     cmdDisp, downlink through the static telemetry packetizer to framer -- without the
+#     Samd21 hardware underneath it. `restrict_platforms(native)` on that deployment is why
+#     it only ever builds here, not in build.yml's cross build.
 #   * `config-samd-reference/CMakeLists.txt` drops the PlatformCfg.fpp override under
 #     BUILD_TESTING, because the POSIX OSAL's handles are larger than the SAMD21-tuned
 #     FW_*_HANDLE_MAX_SIZE maxima. That branch has no other consumer; if it regresses,
@@ -24,9 +30,10 @@
 # the ctest preset. Both sets are documented where they are declared, including the
 # conditions for removing them.
 #
-# When the first project unit test lands, no CI change is needed: the shared unit-tests
-# action discovers `*_ut_exe` targets from the build cache and `ctest --preset native-ut`
-# picks the test up automatically.
+# No CI change was needed to pick CmdTlmTest_Top_ut_exe up: the shared unit-tests action
+# discovers `*_ut_exe` targets from the build cache and `ctest --preset native-ut` runs
+# whatever register_fprime_ut() registered. The same is true for the next project unit
+# test that lands.
 
 name: "Unit Tests"
 
@@ -80,7 +87,7 @@ jobs:
         # Uses the documented `native-ut` test preset, so CMakePresets.json is exercised by
         # CI as well as the fprime-util path, and the preset's exclude filter applies. The
         # executables are already built by the `all` target above, so the action only runs
-        # them. Verified locally: 9/9 pass.
+        # them. Verified locally: 10/10 pass (9 library tests + CmdTlmTest_Top_ut_exe).
         uses: ./lib/fprime-samd/.github/actions/unit-tests
         with:
           preset: native-ut
