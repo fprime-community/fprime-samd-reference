@@ -20,18 +20,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  # Project-owned C++ only; lib/ holds submodules, which are formatted by their own repos.
-  #
-  # Both directories are listed on purpose. config-samd-reference/ carries hand-edited
-  # copies of upstream configuration headers and is exactly the place where stray
-  # indentation and missing trailing newlines creep in, so leaving it out of the check
-  # would miss the most likely offender.
-  #
-  # Not covered by any automated check: the .fpp sources. fpp-format rewrites rather than
-  # verifies, so there is no `--check` mode to wire up here.
   CHECKED_DIRS: >-
     CuriosityReference
     config-samd-reference
+    CmdTlmTest
 
 jobs:
   cpp-formatting:
