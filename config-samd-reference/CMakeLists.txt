@@ -31,6 +31,7 @@ register_fprime_config(
         # --- overrides lib/fprime/default/config ---
         "${CMAKE_CURRENT_LIST_DIR}/AcConstants.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/ComCfg.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/FpConfig.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/FpConstants.fpp"
         ${PLATFORM_CFG_OVERRIDE}
         "${CMAKE_CURRENT_LIST_DIR}/FpConfig.h"
