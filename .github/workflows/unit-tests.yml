@@ -1,40 +1,3 @@
-# Native (host x86-64) unit tests. No ARM toolchain and no CMSIS are needed: this build
-# targets the host, so it is a fraction of the cost of the cross build in build.yml.
-#
-# WHAT THIS JOB GATES
-# ----------------------------------------------------------------------------------------
-# No component under CuriosityReference/ registers a unit test yet -- every
-# `register_fprime_ut(...)` there is still commented out. The job is a hard gate anyway,
-# because four things that ARE load-bearing get validated on every pull request:
-#
-#   * The 9 library unit tests that fprime-samd and fprime-baremetal ship and that build and
-#     pass against this repo's config (Drv Adc/Rtc/Usart/I2c/Gpio, Svc Framer, Svc TmFramer,
-#     Svc ThinBufferManager, Svc TlmLinearChan). That is real smoke coverage for the drivers
-#     this reference exists to demonstrate, and it is worth keeping green.
-#   * CmdTlmTest_Top_ut_exe, this repo's own gtest-driven test topology (see
-#     CmdTlmTest/CMakeLists.txt): it exercises the commanding and telemetry path
-#     CuriosityReference ships -- uplink through frameAccumulator/deframer/fprimeRouter to
-#     cmdDisp, downlink through the static telemetry packetizer to framer -- without the
-#     Samd21 hardware underneath it. `restrict_platforms(native)` on that deployment is why
-#     it only ever builds here, not in build.yml's cross build.
-#   * `config-samd-reference/CMakeLists.txt` drops the PlatformCfg.fpp override under
-#     BUILD_TESTING, because the POSIX OSAL's handles are larger than the SAMD21-tuned
-#     FW_*_HANDLE_MAX_SIZE maxima. That branch has no other consumer; if it regresses,
-#     nothing else in CI notices.
-#   * The FPP sources have to parse and autocode for a native platform, not just for Samd21.
-#
-# The `all` target IS built here, and it is green. A native-ut `all` also pulls in
-# lib/fprime-baremetal's own unit-test executables, two of which (MicroFsFullTest,
-# MicroFsFileTest) cannot build because Os::Baremetal::MicroFs does not compile at the
-# pinned commit; those are EXCLUDE_FROM_ALL in the root CMakeLists.txt and filtered out of
-# the ctest preset. Both sets are documented where they are declared, including the
-# conditions for removing them.
-#
-# No CI change was needed to pick CmdTlmTest_Top_ut_exe up: the shared unit-tests action
-# discovers `*_ut_exe` targets from the build cache and `ctest --preset native-ut` runs
-# whatever register_fprime_ut() registered. The same is true for the next project unit
-# test that lands.
-
 name: "Unit Tests"
 
 on:
@@ -65,29 +28,12 @@ jobs:
         uses: ./lib/fprime-samd/.github/actions/setup-fprime
 
       - name: "Generate the native unit-test build cache"
-        # settings.ini sets no `default_ut_toolchain`, so fprime-util falls back to
-        # "native" and lands the cache in build-fprime-automatic-native-ut -- the same
-        # directory the `native-ut` CMake preset declares as its binaryDir, which is why
-        # the ctest preset below works against a cache fprime-util generated.
-        #
-        # fprime-util is used rather than `cmake --preset native-ut` because only
-        # fprime-util applies settings.ini's default_cmake_options, and
-        # FPRIME_ENABLE_FRAMEWORK_UTS=OFF is what keeps the ~150 framework unit tests out
-        # of this build entirely.
         run: fprime-util generate --ut
 
       - name: "Build the native-ut all target"
-        # Regression gate on the EXCLUDE_FROM_ALL list in the root CMakeLists.txt. Without
-        # this, an exclusion that becomes unnecessary is never removed and a newly-broken
-        # module is never caught -- the `if (TARGET ...)` guards mean a submodule bump that
-        # renames a target degrades to a status message, so the rot would be invisible.
         run: ninja -C build-fprime-automatic-native-ut all
 
       - name: "Run the unit tests"
-        # Uses the documented `native-ut` test preset, so CMakePresets.json is exercised by
-        # CI as well as the fprime-util path, and the preset's exclude filter applies. The
-        # executables are already built by the `all` target above, so the action only runs
-        # them. Verified locally: 10/10 pass (9 library tests + CmdTlmTest_Top_ut_exe).
         uses: ./lib/fprime-samd/.github/actions/unit-tests
         with:
           preset: native-ut
