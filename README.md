@@ -133,6 +133,23 @@ fprime-gds -n \
 selects the packet set the topology declares (`telemetry packets Main`); telemetry here
 is **packetized**, not per-channel, so without it the GDS can't decode the stream.
 
+## Hardware-in-the-loop CI
+
+`ci/curiosity-nano.yml` configures [fprime-ci](https://github.com/fprime-community/fprime-ci) to flash a Curiosity
+Nano over its nEDBG debugger (OpenOCD), start the GDS on the nEDBG UART, and run the integration tests in
+`CuriosityReference/test/int/`. The `samd-ci` plugin comes from `lib/fprime-samd/ci`.
+
+```bash
+pip install ./lib/fprime-samd/ci
+fprime-ci -c ci/curiosity-nano.yml --add-stage build    # build host: produces archive.tar.gz
+fprime-ci -c ci/curiosity-nano.yml --skip-stage build   # host attached to the board: flash, GDS, pytest
+```
+
+The hardware host needs `openocd`, the `/dev/samd21-curiosity` udev rule from `lib/fprime-samd/ci/udev/`, and a
+user in the `dialout` and `plugdev` groups. In nasa/fprime this runs as the `ext-fprime-samd-reference` external
+workflow on a self-hosted runner labelled `samd21-curiosity`; `.github/actions/setup/action.yml` is the
+repository-specific setup hook used by that workflow.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Briefly: build before you push, run
