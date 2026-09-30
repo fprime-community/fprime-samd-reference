@@ -213,7 +213,7 @@ Instances configure in phases declared in `instances.fpp`:
 
 UART (`comDriver`, from `instances.fpp`):
 
-- SERCOM0 on PA08 (TX) / PA09 (RX)
+- SERCOM5 on PA22 (TX) / PB22 (RX), routed to the on-board nEDBG USB CDC serial port
 - 115200 baud, 8N1
 - `DataOrder::LSB_FIRST` — standard UART bit order. (Documentation elsewhere in this
   ecosystem has claimed MSB-first for this configuration. The code says `LSB_FIRST`;

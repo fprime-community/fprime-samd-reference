@@ -8,6 +8,7 @@
 
 // Necessary project-specified types
 #include <config/FppConstantsAc.hpp>
+#include "fprime-samd/Overrides/ResetAssertHook.hpp"
 #include "fprime-samd/Svc/StaticMallocator/StaticMallocator.hpp"
 
 // Allows easy reference to objects in FPP/autocoder required namespaces
@@ -17,6 +18,7 @@ namespace CuriosityReference {
 namespace Allocation {
 Samd21::StaticMallocator<128, 1> frameAccumulatorAllocator;
 }  // namespace Allocation
+Samd21::ResetAssertHook assertHook;
 }  // namespace CuriosityReference
 
 // The reference topology divides the incoming 8 Hz clock signal into 8 Hz, 1 Hz and 10 s rate groups
@@ -27,7 +29,7 @@ Samd21::PassiveRateGroupDriver::DividerSet rateGroupDivisors{{{1, 0}, {8, 0}, {8
 const Svc::PassiveRateGroup::ContextArray rgContext = {};
 
 namespace Samd21 {
-// Called by the assert hook (fprime-samd Overrides/reset_assert_hook.cpp) to get a FATAL report off the board before
+// Called by the assert hook (fprime-samd Overrides/ResetAssertHook.cpp) to get a FATAL report off the board before
 // the reset. It runs with the system already declared untrustworthy, so it goes straight out of the synchronous framer
 // rather than through the queued downlink pipeline.
 void sendFatalPacket(Fw::ComBuffer& data) {
@@ -68,6 +70,8 @@ void configureTopology(const TopologyState& state) {
 // Public functions for use in main program are namespaced with deployment name CuriosityReference
 namespace CuriosityReference {
 void setupTopology(const TopologyState& state) {
+    // Route FW_ASSERT to the send-FATAL-then-reset hook before anything can assert.
+    assertHook.registerHook();
     // Autocoded initialization. Function provided by autocoder.
     initComponents(state);
     // Autocoded id setup. Function provided by autocoder.

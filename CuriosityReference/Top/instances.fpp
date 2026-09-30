@@ -19,13 +19,13 @@ module CuriosityReference {
     instance dmaDriver: Samd21.DmaDriver base id 0x3000
     instance comDriver: Samd21.UsartDriver base id 0x3020 {
         phase Fpp.ToCpp.Phases.configComponents """
-        // Configure GPIO pins for SERCOM0
-        Samd21::PinMux::configure(PINMUX_PA08C_SERCOM0_PAD0);  // PA8 -> SERCOM0 PAD[0] (TX)
-        Samd21::PinMux::configure(PINMUX_PA09C_SERCOM0_PAD1);  // PA9 -> SERCOM0 PAD[1] (RX)
+        // Configure GPIO pins for SERCOM5 (routed to the on-board nEDBG virtual COM port)
+        Samd21::PinMux::configure(PINMUX_PA22D_SERCOM5_PAD0);  // PA22 -> SERCOM5 PAD[0] (TX -> CDC RX)
+        Samd21::PinMux::configure(PINMUX_PB22D_SERCOM5_PAD2);  // PB22 -> SERCOM5 PAD[2] (RX <- CDC TX)
 
         comDriver.configure(
-        Samd21::SercomKind::SERCOM_0,
-        Samd21::UsartDriver::RxPinOut::PAD1,
+        Samd21::SercomKind::SERCOM_5,
+        Samd21::UsartDriver::RxPinOut::PAD2,
         Samd21::UsartDriver::TxPinOut::PAD0,
         Samd21::UsartDriver::ClockMode::INTERNAL,
         Samd21::UsartDriver::CommunicationMode::ASYNC,

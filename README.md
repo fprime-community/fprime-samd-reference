@@ -17,15 +17,17 @@ an I2C device for `I2cTester` to talk to, and a jumper between the two GPIO pins
 
 | Function               | Pin(s)                 | Peripheral                                   |
 | ---------------------- | ---------------------- | -------------------------------------------- |
-| Uplink / downlink UART | PA08 (TX), PA09 (RX)   | SERCOM0, 115200 8N1, LSB first               |
+| Uplink / downlink UART | PA22 (TX), PB22 (RX)   | SERCOM5, 115200 8N1, LSB first               |
 | I2C                    | PA12 (SDA), PA13 (SCL) | SERCOM4, 400 kHz fast mode                   |
 | GPIO input             | PA23                   | pull-up, EIC interrupt on both edges         |
 | GPIO output            | PA25                   | push-pull                                    |
 | Rate-group tick        | —                      | RTC, ultra-low-power 32 kHz oscillator, 8 Hz |
 
-The Curiosity Nano's on-board nEDBG debugger exposes a USB CDC serial port, but that's
-separate from the UART pins above — bring your own 3.3 V USB-serial adapter on PA08 /
-PA09, or re-pin `comDriver` in `CuriosityReference/Top/instances.fpp`.
+PA22 / PB22 are the pins the Curiosity Nano routes to its on-board nEDBG debugger's USB
+CDC virtual COM port (CDC RX / CDC TX in the kit user guide), so the single USB cable that
+powers and programs the board also carries uplink / downlink — no external USB-serial
+adapter is needed. To use a different UART instead, re-pin `comDriver` in
+`CuriosityReference/Top/instances.fpp`.
 
 ## Quickstart
 
@@ -116,7 +118,12 @@ variant; the geometry is identical), and loads the `.bin` at `0x0000` — there'
 bootloader on this board. `scripts/flash.jlink` is the command template it renders.
 
 The on-board nEDBG debugger speaks CMSIS-DAP rather than J-Link's protocol. To flash
-through it instead, point `pymcuprog` or OpenOCD at the same `.bin`.
+through it instead, point `pymcuprog` or OpenOCD at the same `.bin`:
+
+```bash
+openocd -f interface/cmsis-dap.cfg -c "transport select swd" -f target/at91samdXX.cfg \
+    -c "program build-artifacts/microchip_curiosity/CuriosityReference/bin/CuriosityReference.elf.bin 0x00000000 verify reset exit"
+```
 
 ## Running the ground system
 
@@ -125,13 +132,17 @@ fprime-gds -n \
     --dictionary build-artifacts/microchip_curiosity/CuriosityReference/dict/TopTopologyDictionary.json \
     --packet-set-name Main \
     --communication-selection uart \
-    --uart-device /dev/ttyUSB0 \
-    --uart-baud 115200
+    --uart-device /dev/ttyACM0 \
+    --uart-baud 115200 \
+    --framing-selection fprime
 ```
 
 `-n` because the binary runs on the board, not the host. `--packet-set-name Main`
 selects the packet set the topology declares (`telemetry packets Main`); telemetry here
 is **packetized**, not per-channel, so without it the GDS can't decode the stream.
+`/dev/ttyACM0` is the nEDBG virtual COM port (the same USB cable used for flashing).
+`--framing-selection fprime` because the deployment frames with the F Prime protocol and
+newer `fprime-gds` releases default to CCSDS space packets.
 
 ## Contributing
 

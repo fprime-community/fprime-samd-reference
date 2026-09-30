@@ -16,4 +16,6 @@ register_fprime_module(
     "${CMAKE_CURRENT_LIST_DIR}/topology.fpp"
   SOURCES
     "${CMAKE_CURRENT_LIST_DIR}/TopTopology.cpp"
+  DEPENDS
+    fprime-samd_Overrides_ResetAssertHook
 )
