@@ -159,6 +159,27 @@ module CuriosityReference {
     }
 
     # ----------------------------------------------------------------------
+    # F-RAM (SPI) Components
+    # ----------------------------------------------------------------------
+    # The F-RAM protocol driver and its SPI host come from Fram.Subtopology
+    # (fprime-devices); the SPI settings live in that subtopology's
+    # FramSubtopologyConfig. What the deployment adds is the chip-select pin
+    # and the ground-facing exerciser.
+
+    @ Software chip select for the F-RAM (PA18): SERCOM1's hardware CS is not
+    @ used, so Fram.spiDriver drives this pin through chipSelectGpioOut around
+    @ each frame. It is configured from TopTopology.cpp, not from a phase here:
+    @ Fram.spiDriver.configure() (configComponents) deasserts every chip select
+    @ through that port, so the pin has to be an output before configComponents
+    @ runs, and a phase on this instance cannot be ordered ahead of one on
+    @ another instance.
+    instance framCs: Samd21.GpioDriver base id 0xDD30
+
+    @ Exercises the F-RAM from the ground. See CuriosityReference/FramTester/docs/sdd.md.
+    @ Polling (the write/verify soak loop) is OFF at boot; send FRAMTESTER.SET_POLLING(true).
+    instance framTester: CuriosityReference.FramTester base id 0xDD40
+
+    # ----------------------------------------------------------------------
     # I2C Components
     # ----------------------------------------------------------------------
 

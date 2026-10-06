@@ -1,0 +1,4 @@
+{
+    "Svc.CommandDispatcher": "CuriosityReference.cmdDisp",
+    "CuriosityReference.FramTester": "CuriosityReference.framTester"
+}

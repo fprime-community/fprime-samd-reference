@@ -24,6 +24,8 @@ module CuriosityReference {
         USART0_UPL_DWN_RX
         SERCOM4_I2C_WRITE
         SERCOM4_I2C_READ
+        SERCOM1_SPI_MOSI
+        SERCOM1_SPI_MISO
     }
 
     deployment topology Top {
@@ -64,6 +66,11 @@ module CuriosityReference {
 
         instance tlm
 
+        instance framCs
+        instance framTester
+        @ F-RAM protocol driver + its SPI host (Fram.framDriver, Fram.spiDriver)
+        instance Fram.Subtopology
+
         telemetry packets Main {
 
             packet Error group 1 {
@@ -87,6 +94,18 @@ module CuriosityReference {
                 i2cTester.TxnCount
                 i2cTester.TargetAddress
                 i2cTester.RegisterOffset
+            }
+
+            packet Fram group 0 {
+                framTester.WriteCount
+                framTester.ReadCount
+                framTester.VerifyFailures
+                framTester.FramErrors
+                framTester.BusyRejects
+                framTester.LastStatus
+                framTester.ReadData0
+                framTester.ReadData1
+                framTester.PollCycles
             }
 
             packet Health group 0 {
@@ -158,6 +177,7 @@ module CuriosityReference {
             cycler.cycleOut -> comDriver.activeIn
             cycler.cycleOut -> rateDriver.activeIn
             cycler.cycleOut -> i2cDriver.activeIn
+            cycler.cycleOut -> Fram.framDriver.activeIn
         }
 
         connections RateGroups {
@@ -179,6 +199,9 @@ module CuriosityReference {
             rateGroupDriver.CycleOut[Ports_RateGroups.rateGroup2] -> rg1Hz.CycleIn
             rg1Hz.RateGroupMemberOut[0]                           -> i2cDriver.reportTelemetryIn
             rg1Hz.RateGroupMemberOut[1]                           -> i2cTester.schedIn
+            rg1Hz.RateGroupMemberOut[2]                           -> framTester.schedIn
+            # Scheduled downlink of the Fram telemetry packet (packet id 2 == port index).
+            rg1Hz.RateGroupMemberOut[3]                           -> tlm.pktSendIn[2]
             # framer.schedIn sits in the LAST slot on purpose: it drains the com
             # packet queue, so it must run after every member that may have pushed
             # telemetry or an event into that queue this cycle.
@@ -265,6 +288,29 @@ module CuriosityReference {
             i2cDriver.writeReadComplete -> i2cTester.writeReadCompleteIn
             i2cTester.i2cWriteOut       -> i2cDriver.write
             i2cDriver.writeComplete     -> i2cTester.writeCompleteIn
+        }
+
+        @ The F-RAM's SPI host: DMA channels for the MOSI and MISO streams, and the
+        @ software chip select. The FramDriver <-> SpiDriver connections themselves
+        @ are made inside Fram.Subtopology.
+        connections FramSpi {
+            Fram.spiDriver.dmaTransactionOut[Samd21.SpiDriver.DmaChannel.MOSI] -> dmaDriver.sendTransactionIn[DmaChannel.SERCOM1_SPI_MOSI]
+            dmaDriver.transactionIsrOut[DmaChannel.SERCOM1_SPI_MOSI]           -> Fram.spiDriver.dmaReplyIn[Samd21.SpiDriver.DmaChannel.MOSI]
+            Fram.spiDriver.dmaTransactionOut[Samd21.SpiDriver.DmaChannel.MISO] -> dmaDriver.sendTransactionIn[DmaChannel.SERCOM1_SPI_MISO]
+            dmaDriver.transactionIsrOut[DmaChannel.SERCOM1_SPI_MISO]           -> Fram.spiDriver.dmaReplyIn[Samd21.SpiDriver.DmaChannel.MISO]
+            Fram.spiDriver.chipSelectGpioOut[Fram.SubtopologyConfig.SPI_SLOT]  -> framCs.gpioWrite
+        }
+
+        @ Attach the F-RAM client to the protocol driver. Both pairs are left
+        @ unindexed: FramDriver.fpp declares `match readComplete with read` and
+        @ `match writeComplete with write`, so a request and its callback land on
+        @ the same client port index. Both callbacks MUST be connected -- the
+        @ driver otherwise drops the completion and the client wedges mid-transaction.
+        connections FramTester {
+            framTester.framReadOut        -> Fram.framDriver.read
+            Fram.framDriver.readComplete  -> framTester.readCompleteIn
+            framTester.framWriteOut       -> Fram.framDriver.write
+            Fram.framDriver.writeComplete -> framTester.writeCompleteIn
         }
 
         connections Pins {

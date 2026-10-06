@@ -78,6 +78,9 @@ void setupTopology(const TopologyState& state) {
 
     // Autocoded connection wiring. Function provided by autocoder.
     connectComponents();
+    // The F-RAM chip select must be an output before configComponents: Fram::spiDriver.configure() deasserts every
+    // chip select through chipSelectGpioOut, and a GpioDriver drops writes with NOT_OPENED until it is configured.
+    framCs.configureOutput(Samd21::GpioDriver::Group::PA, Samd21::GpioDriver::Pin::PIN_18);
     // Autocoded configuration. Function provided by autocoder.
     configComponents(state);
     // Project-specific component configuration. Function provided above. May be inlined, if desired.

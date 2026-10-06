@@ -12,13 +12,14 @@ This repository builds off of other repositories:
 ## Hardware
 
 The SAMD21 Curiosity Nano (Microchip part number `DM320119`) and nothing else. Optional:
-an I2C device for `I2cTester` to talk to, and a jumper between the two GPIO pins so
-`GpioIn` can see what `GpioOut` drives.
+an I2C device for `I2cTester` to talk to, a jumper between the two GPIO pins so
+`GpioIn` can see what `GpioOut` drives, and a CY15B102QN F-RAM on SPI for `FramTester`.
 
 | Function               | Pin(s)                 | Peripheral                                   |
 | ---------------------- | ---------------------- | -------------------------------------------- |
 | Uplink / downlink UART | PA22 (TX), PB22 (RX)   | SERCOM5, 115200 8N1, LSB first               |
 | I2C                    | PA12 (SDA), PA13 (SCL) | SERCOM4, 400 kHz fast mode                   |
+| F-RAM SPI              | PA16 (MOSI), PA17 (SCK), PA19 (MISO), PA18 (CS) | SERCOM1, mode 0, 4 MHz, software chip select |
 | GPIO input             | PA23                   | pull-up, EIC interrupt on both edges         |
 | GPIO output            | PA25                   | push-pull                                    |
 | Rate-group tick        | —                      | RTC, ultra-low-power 32 kHz oscillator, 8 Hz |

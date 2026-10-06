@@ -11,6 +11,7 @@
 #include <fprime-samd/Drv/Types/PinMux.hpp>
 
 #include "fprime-samd/Svc/StaticMallocator/StaticMallocator.hpp"
+#include "fprime-devices/Fram/Subtopology/FramSubtopologyTopologyDefs.hpp"
 
 /**
  * \brief required ping constants
