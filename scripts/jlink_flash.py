@@ -140,7 +140,7 @@ def get_device_name(toolchain):
     # ATSAMD21G17D; JLinkExe has no D variant, and the A shares the same flash and
     # RAM geometry, so the A is the correct selection.
     device_map = {
-        'microchip_curiosity': 'ATSAMD21G17A',
+        'samd21g17': 'ATSAMD21G17A',
     }
 
     return device_map.get(toolchain, 'ATSAMD21G17A')
@@ -151,7 +151,7 @@ def get_flash_address(device_name):
     address_map = {
         # No bootloader on the Curiosity Nano: the image starts at the vector table.
         # This matches MEMORY { FLASH : ORIGIN = 0x0 } in
-        # lib/fprime-samd/cmake/toolchain/samd21/curiosity_nano/linker_scripts/
+        # lib/fprime-samd/cmake/toolchain/samd21/samd21g17/linker_scripts/
         # flash_without_bootloader.ld
         'ATSAMD21G17A': '0x0000',
     }
@@ -278,7 +278,7 @@ def main():
 Examples:
   %(prog)s                             # Interactive mode
   %(prog)s CuriosityReference          # Flash a specific deployment
-  %(prog)s -t microchip_curiosity      # Use a specific toolchain
+  %(prog)s -t samd21g17                # Use a specific toolchain
   %(prog)s -d ATSAMD21G17A             # Use a specific device
         """
     )

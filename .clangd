@@ -7,4 +7,4 @@ CompileFlags:
   ]
   Add:
     - -ferror-limit=0
-  CompilationDatabase: build-fprime-automatic-microchip_curiosity
+  CompilationDatabase: build-fprime-automatic-samd21g17

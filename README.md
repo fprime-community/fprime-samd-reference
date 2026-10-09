@@ -39,12 +39,12 @@ python3 -m venv venv
 . venv/bin/activate
 pip install -r requirements.txt
 
-fprime-util generate microchip_curiosity
-fprime-util build -j"$(nproc)" -p CuriosityReference microchip_curiosity
+fprime-util generate samd21g17
+fprime-util build -j"$(nproc)" -p CuriosityReference samd21g17
 ```
 
 The build prints an `arm-none-eabi-size -A` table and leaves artifacts in
-`build-artifacts/microchip_curiosity/CuriosityReference/`:
+`build-artifacts/samd21g17/CuriosityReference/`:
 
 ```
 bin/CuriosityReference.elf        linked image
@@ -62,7 +62,7 @@ never reads `settings.ini`. Once the cache exists, the presets in `CMakePresets.
 share `fprime-util`'s `binaryDir`, so you can also drive the build directly:
 
 ```bash
-cmake --build --preset microchip_curiosity
+cmake --build --preset samd21g17
 ```
 
 ### A faster clone
@@ -122,14 +122,14 @@ through it instead, point `pymcuprog` or OpenOCD at the same `.bin`:
 
 ```bash
 openocd -f interface/cmsis-dap.cfg -c "transport select swd" -f target/at91samdXX.cfg \
-    -c "program build-artifacts/microchip_curiosity/CuriosityReference/bin/CuriosityReference.elf.bin 0x00000000 verify reset exit"
+    -c "program build-artifacts/samd21g17/CuriosityReference/bin/CuriosityReference.elf.bin 0x00000000 verify reset exit"
 ```
 
 ## Running the ground system
 
 ```bash
 fprime-gds -n \
-    --dictionary build-artifacts/microchip_curiosity/CuriosityReference/dict/TopTopologyDictionary.json \
+    --dictionary build-artifacts/samd21g17/CuriosityReference/dict/TopTopologyDictionary.json \
     --packet-set-name Main \
     --communication-selection uart \
     --uart-device /dev/ttyACM0 \

@@ -42,10 +42,10 @@ concurrency:
 
 env:
   DEPLOYMENT: CuriosityReference
-  TOOLCHAIN: microchip_curiosity
+  TOOLCHAIN: samd21g17
   # The memory budget is read from this script's MEMORY block rather than hardcoded, so it
   # stays correct if the part or the bootloader reservation ever changes.
-  LINKER_SCRIPT: lib/fprime-samd/cmake/toolchain/samd21/curiosity_nano/linker_scripts/flash_without_bootloader.ld
+  LINKER_SCRIPT: lib/fprime-samd/cmake/toolchain/samd21/samd21g17/linker_scripts/flash_without_bootloader.ld
   TARGET_LABEL: SAMD21G17D
   REPORT_MARKER: samd21-size-report
 

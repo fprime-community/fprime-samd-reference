@@ -14,15 +14,15 @@
       }
     },
     {
-      "name": "microchip_curiosity",
+      "name": "samd21g17",
       "inherits": "base",
       "displayName": "Microchip Curiosity (MinSizeRel)",
       "description": "Size-optimized build for Microchip Curiosity Nano Board (default)",
-      "binaryDir": "${sourceDir}/build-fprime-automatic-microchip_curiosity",
+      "binaryDir": "${sourceDir}/build-fprime-automatic-samd21g17",
       "cacheVariables": {
         "_comment_build_type": "MinSizeRel, NOT Release. The toolchain puts -Os in CMAKE_CXX_FLAGS_INIT; CMake appends CMAKE_CXX_FLAGS_<CONFIG> after it, so Release's -O3 would win and cost ~28 KB of flash (22% of this 128 KB part). MinSizeRel appends -Os -DNDEBUG, which agrees with the toolchain.",
         "CMAKE_BUILD_TYPE": "MinSizeRel",
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/lib/fprime-samd/cmake/toolchain/microchip_curiosity.cmake"
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/lib/fprime-samd/cmake/toolchain/samd21g17.cmake"
       }
     },
     {
@@ -39,8 +39,8 @@
   ],
   "buildPresets": [
     {
-      "name": "microchip_curiosity",
-      "configurePreset": "microchip_curiosity",
+      "name": "samd21g17",
+      "configurePreset": "samd21g17",
       "displayName": "Microchip Curiosity Release",
       "description": "Build release binary"
     },
