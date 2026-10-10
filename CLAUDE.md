@@ -35,15 +35,15 @@ is accurate and it explains the parts that are surprising.
 ```bash
 source venv/bin/activate
 
-# Generate a build cache. `microchip_curiosity` is the only cross toolchain; it is also
+# Generate a build cache. `samd21g17` is the only cross toolchain; it is also
 # `default_toolchain` in settings.ini, so the name is optional here.
-fprime-util generate microchip_curiosity
+fprime-util generate samd21g17
 
 # Build the deployment. NOTE: the flag is -p (path), not -d.
-fprime-util build -j"$(nproc)" -p CuriosityReference microchip_curiosity
+fprime-util build -j"$(nproc)" -p CuriosityReference samd21g17
 
 # Build one component
-fprime-util build -p CuriosityReference/GpioIn microchip_curiosity
+fprime-util build -p CuriosityReference/GpioIn samd21g17
 
 # Unit tests (native, no cross toolchain needed).
 # NOTE: `generate --ut`, NOT `generate native-ut` -- `native-ut` is the name of the
@@ -73,8 +73,8 @@ the `fprime-samd` modules are not found) and `default_cmake_options` to CMake; a
 cache `fprime-util` produces, so build and test steps work against it either way:
 
 ```bash
-fprime-util generate microchip_curiosity
-cmake --build --preset microchip_curiosity
+fprime-util generate samd21g17
+cmake --build --preset samd21g17
 
 fprime-util generate --ut
 ctest --preset native-ut

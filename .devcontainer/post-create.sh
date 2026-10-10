@@ -28,5 +28,5 @@ echo "F Prime packages:"
 pip3 list | grep fprime | sed 's/^/  - /'
 echo ""
 echo "To build the project:"
-echo "  fprime-util generate microchip_curiosity"
-echo "  fprime-util build -p CuriosityReference microchip_curiosity"
+echo "  fprime-util generate samd21g17"
+echo "  fprime-util build -p CuriosityReference samd21g17"
