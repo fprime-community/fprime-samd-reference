@@ -141,7 +141,7 @@ module CuriosityReference {
         inPA23.configureInput(
             Samd21::GpioDriver::Group::PA,
             Samd21::GpioDriver::Pin::PIN_23,
-            Samd21::GpioDriver::InputPullMode::PULL_UP,
+            Samd21::Gpio::InputPullMode::PULL_UP,
             Samd21::GpioDriver::ExternalInterruptMode::BOTH
         );
         """
