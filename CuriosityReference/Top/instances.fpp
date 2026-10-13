@@ -90,7 +90,7 @@ module CuriosityReference {
     instance rg1Hz: Svc.PassiveRateGroup base id 0x1030  @< 1Hz frequency
     instance rg10s: Svc.PassiveRateGroup base id 0x1040  @< 10s period
 
-    instance timeHandler: Samd21.Samd21Time base id 0x2000
+    instance timeHandler: Samd21.ProcTime base id 0x2000
     instance rateGroupDriver: Samd21.PassiveRateGroupDriver base id 0x2010
     instance cmdDisp: Samd21.StaticCmdDispatcher base id 0x2020
     instance tlm: Samd21.StaticTlmPacketizer base id 0x2030
