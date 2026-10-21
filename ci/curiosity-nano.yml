@@ -1,0 +1,51 @@
+# fprime-ci configuration: CuriosityReference on a SAMD21 Curiosity Nano attached to a self-hosted runner.
+#
+#   Build stage (any host with the SAMD toolchain):
+#     fprime-ci -c ci/curiosity-nano.yml --add-stage build
+#   Hardware stages (runner attached to the board; consumes archive.tar.gz from the build stage):
+#     fprime-ci -c ci/curiosity-nano.yml --skip-stage build
+#
+# The board is programmed over the on-board nEDBG CMSIS-DAP debugger with OpenOCD, and the GDS talks to the flight
+# software over the nEDBG CDC UART. /dev/samd21-curiosity is the stable UART symlink created by
+# lib/fprime-samd/ci/udev/91-samd21-curiosity.rules.
+deployment-name: CuriosityReference
+platform-name: microchip_curiosity
+dictionary: build-artifacts/microchip_curiosity/CuriosityReference/dict/TopTopologyDictionary.json
+executable: build-artifacts/microchip_curiosity/CuriosityReference/bin/CuriosityReference.elf.bin
+test-scripts:
+  - CuriosityReference/test/int/test_curiosity_reference.py
+archive-path: ./archive.tar.gz
+extra-gds-arguments:
+  - --zmq-transport
+  - ipc:///tmp/fprime-server-ci-in
+  - ipc:///tmp/fprime-server-ci-out
+  - --communication-selection
+  - uart
+  - --uart-device
+  - /dev/samd21-curiosity
+  - --uart-baud
+  - "115200"
+  - --framing-selection
+  - fprime
+  - --packet-set-name
+  - Main
+  - --gui
+  - none
+extra-pytest-arguments:
+  - -s
+  - --zmq-transport
+  - ipc:///tmp/fprime-server-ci-in
+  - ipc:///tmp/fprime-server-ci-out
+command-line-options:
+  ci-selection: samd-ci
+  port: /dev/samd21-curiosity
+flash-command:
+  - openocd
+  - -f
+  - interface/cmsis-dap.cfg
+  - -c
+  - transport select swd
+  - -f
+  - target/at91samdXX.cfg
+  - -c
+  - program build-artifacts/microchip_curiosity/CuriosityReference/bin/CuriosityReference.elf.bin 0x00000000 verify reset exit
