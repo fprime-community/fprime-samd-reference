@@ -30,6 +30,7 @@ register_fprime_config(
     CONFIGURATION_OVERRIDES
         # --- overrides lib/fprime/default/config ---
         "${CMAKE_CURRENT_LIST_DIR}/AcConstants.fpp"
+        "${CMAKE_CURRENT_LIST_DIR}/AsyncSpiCfg.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/ComCfg.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/FpConfig.fpp"
         "${CMAKE_CURRENT_LIST_DIR}/FpConstants.fpp"

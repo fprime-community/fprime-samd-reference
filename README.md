@@ -9,6 +9,13 @@ This repository builds off of other repositories:
 - SAMD21 Drivers [fprime-samd](https://github.com/fprime-community/fprime-samd)
 - [fprime-baremetal](https://github.com/fprime-community/fprime-baremetal) OSAL
 
+One submodule pin is **temporary**: `lib/fprime` points at `lestarch-autobot/fprime` branch
+`samd-reference-kronos3-upstream-devel` — the previous `Kronos3/fprime` `upstream` pin merged with
+`nasa/fprime` `devel` (which carries [nasa/fprime#6237](https://github.com/nasa/fprime/pull/6237):
+`Drv.AsyncSpi` / `Drv.AsyncGuardedSpi`, `AsyncSpiCfg`). Move the pin back to `Kronos3/fprime` once its
+`upstream` branch picks up that devel. `config-samd-reference/AsyncSpiCfg.fpp` sizes the async SPI
+driver at four slots for this deployment.
+
 ## Hardware
 
 The SAMD21 Curiosity Nano (Microchip part number `DM320119`) and nothing else. Optional:
