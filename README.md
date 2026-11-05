@@ -9,12 +9,10 @@ This repository builds off of other repositories:
 - SAMD21 Drivers [fprime-samd](https://github.com/fprime-community/fprime-samd)
 - [fprime-baremetal](https://github.com/fprime-community/fprime-baremetal) OSAL
 
-One submodule pin is **temporary**: `lib/fprime` points at `lestarch-autobot/fprime` branch
-`samd-reference-kronos3-upstream-devel` — the previous `Kronos3/fprime` `upstream` pin merged with
-`nasa/fprime` `devel` (which carries [nasa/fprime#6237](https://github.com/nasa/fprime/pull/6237):
-`Drv.AsyncSpi` / `Drv.AsyncGuardedSpi`, `AsyncSpiCfg`). Move the pin back to `Kronos3/fprime` once its
-`upstream` branch picks up that devel. `config-samd-reference/AsyncSpiCfg.fpp` sizes the async SPI
-driver at four slots for this deployment.
+`lib/fprime` tracks [nasa/fprime](https://github.com/nasa/fprime) `devel` (at or past
+[nasa/fprime#6326](https://github.com/nasa/fprime/pull/6326), whose assert-hook names
+`lib/fprime-samd` implements). `config-samd-reference/AsyncSpiCfg.fpp` sizes the async SPI
+driver (`Drv.AsyncSpi` / `Drv.AsyncGuardedSpi`) at four slots for this deployment.
 
 ## Hardware
 
@@ -150,6 +148,23 @@ is **packetized**, not per-channel, so without it the GDS can't decode the strea
 `/dev/ttyACM0` is the nEDBG virtual COM port (the same USB cable used for flashing).
 `--framing-selection fprime` because the deployment frames with the F Prime protocol and
 newer `fprime-gds` releases default to CCSDS space packets.
+
+## Continuous integration on hardware
+
+`nasa/fprime` builds this deployment and runs `CuriosityReference/test/int` on a Curiosity Nano
+through [fprime-ci](https://github.com/fprime-community/fprime-ci) with the `samd-ci` plugin from
+`lib/fprime-samd/ci`. The configuration is
+`lib/fprime-samd/ci/sample-configs/samd21g17.yml`; `.github/actions/setup` installs the plugin and
+the cross toolchain for it. The same two commands reproduce the flow locally:
+
+```bash
+pip install ./lib/fprime-samd/ci
+fprime-ci -c ./lib/fprime-samd/ci/sample-configs/samd21g17.yml --add-stage build   # build, archive.tar.gz
+fprime-ci -c ./lib/fprime-samd/ci/sample-configs/samd21g17.yml --skip-stage build  # flash, GDS, pytest
+```
+
+The second command needs `openocd`, the board on `/dev/samd21-curiosity`
+(`lib/fprime-samd/ci/udev/91-samd21-curiosity.rules`), and nothing else holding that port.
 
 ## Contributing
 

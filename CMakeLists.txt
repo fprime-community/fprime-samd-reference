@@ -47,6 +47,12 @@ set(SAMD_REFERENCE_EXCLUDED_MODULES
     # is a compile-time table here -- see docs/architecture.md). Excluded to keep `all`
     # from building a second, unused dispatcher.
     fprime-baremetal_Svc_PassiveCmdDispatcher
+
+    # nasa/fprime#6285 made the cycle-started flag a std::atomic<bool> and static_asserts
+    # ATOMIC_BOOL_LOCK_FREE == 2; arm-none-eabi reports 1 for Cortex-M0+ (no LDREX/STREX), so
+    # the module no longer compiles for this target. Nothing here is active -- the rate
+    # groups are Svc.PassiveRateGroup -- so the component is unused.
+    Svc_ActiveRateGroup
 )
 
 if (BUILD_TESTING)

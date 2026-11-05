@@ -285,8 +285,8 @@ These come from the target and are not negotiable:
 - **`lib/` is submodules.** Do not edit code under `lib/` to fix a build here; fix it
   upstream or work around it in this repository with a comment saying which upstream
   change removes the need.
-- **Two submodule pins are temporary workarounds** (a fork of `nasa/fprime`, and an
-  unmerged `fprime-samd` branch). The README explains both. Do not silently repin.
+- **`lib/fprime` tracks `nasa/fprime` `devel`** and `lib/fprime-samd` tracks its `main`; the two move
+  together when the F Prime API changes (the README explains). Do not silently repin.
 - **`CuriosityReference/Top/CMakeLists.txt` carries a `DEPENDS
   Svc_TlmPacketizer_config_TlmPacketizerConfig` workaround** for a fix not yet present in
   the pinned `fprime-samd`. Its comment says when it can be removed.

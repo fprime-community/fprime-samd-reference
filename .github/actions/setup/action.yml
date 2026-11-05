@@ -1,0 +1,15 @@
+name: "CuriosityReference CI Setup"
+description: "Set up fprime-ci for CuriosityReference on the SAMD21 Curiosity Nano"
+inputs:
+  stage:
+    description: "Stage of the CI process"
+    required: false
+    default: "all"
+    type: string
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up SAMD CI"
+      uses: ./lib/fprime-samd/.github/actions/setup-ci
+      with:
+        stage: ${{ inputs.stage }}
