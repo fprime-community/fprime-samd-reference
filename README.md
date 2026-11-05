@@ -151,6 +151,23 @@ is **packetized**, not per-channel, so without it the GDS can't decode the strea
 `--framing-selection fprime` because the deployment frames with the F Prime protocol and
 newer `fprime-gds` releases default to CCSDS space packets.
 
+## Continuous integration on hardware
+
+`nasa/fprime` builds this deployment and runs `CuriosityReference/test/int` on a Curiosity Nano
+through [fprime-ci](https://github.com/fprime-community/fprime-ci) with the `samd-ci` plugin from
+`lib/fprime-samd/ci`. The configuration is
+`lib/fprime-samd/ci/sample-configs/samd21g17.yml`; `.github/actions/setup` installs the plugin and
+the cross toolchain for it. The same two commands reproduce the flow locally:
+
+```bash
+pip install ./lib/fprime-samd/ci
+fprime-ci -c ./lib/fprime-samd/ci/sample-configs/samd21g17.yml --add-stage build   # build, archive.tar.gz
+fprime-ci -c ./lib/fprime-samd/ci/sample-configs/samd21g17.yml --skip-stage build  # flash, GDS, pytest
+```
+
+The second command needs `openocd`, the board on `/dev/samd21-curiosity`
+(`lib/fprime-samd/ci/udev/91-samd21-curiosity.rules`), and nothing else holding that port.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Briefly: build before you push, run
