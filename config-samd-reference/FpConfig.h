@@ -95,7 +95,17 @@ extern "C" {
 //
 // Note: users who want alternate asserts should set assert level to FW_NO_ASSERT and define FW_ASSERT in this header
 #ifndef FW_ASSERT_LEVEL
+#ifdef BUILD_UT
+#define FW_ASSERT_LEVEL (FW_FILENAME_ASSERT)  //!< Unit test death tests match the file name in the assert message
+#else
 #define FW_ASSERT_LEVEL (FW_FILEID_ASSERT)  //!< Defines the type of assert used
+#endif
+#endif
+
+// The flight assert text is sized to the fatal packet (FwAssertTextSize), which truncates the
+// full path FW_FILENAME_ASSERT prints in unit tests
+#if defined(BUILD_UT) && !defined(FW_ASSERT_TEXT_SIZE)
+#define FW_ASSERT_TEXT_SIZE (256)  //!< Size of string used to store assert description
 #endif
 
 // Decide whether the framework should force assertions to always abort.

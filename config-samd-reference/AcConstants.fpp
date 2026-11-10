@@ -61,7 +61,8 @@ constant DpWriterNumProcPorts = 5
 @ The size of a file name string
 @ Note: trimmed from 240 because this deployment has no file system -- the only remaining
 @ consumer is AssertFatalAdapterEventFileSize below, and assert sites report a file CRC
-@ rather than a path (FW_ASSERT_LEVEL is FW_FILEID_ASSERT in FpConfig.h).
+@ rather than a path (FW_ASSERT_LEVEL is FW_FILEID_ASSERT in FpConfig.h). Native unit tests
+@ use FW_FILENAME_ASSERT; AssertFatalAdapter events there keep the last 16 characters of the path.
 constant FileNameStringSize = 16
 
 module Samd21 {
