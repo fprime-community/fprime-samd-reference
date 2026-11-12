@@ -41,7 +41,7 @@ constant FW_STATEMENT_ARG_BUFFER_MAX_SIZE = 8
 constant FW_TLM_STRING_MAX_SIZE = 2
 
 @ Specifies the size of the buffer that contains the serialized parameter value
-constant FW_PARAM_BUFFER_MAX_SIZE = 8
+constant FW_PARAM_BUFFER_MAX_SIZE = 12
 
 @ Specifies the maximum size of a string in a parameter
 constant FW_PARAM_STRING_MAX_SIZE = 2
