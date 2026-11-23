@@ -131,6 +131,11 @@ module CuriosityReference {
             # it (divisors 8 and 80) and would just consume packet space.
             rg1Hz.CycleCount
             rg10s.CycleCount
+
+            # Cycle slip counts are not downlinked.
+            rg8Hz.CycleSlips
+            rg1Hz.CycleSlips
+            rg10s.CycleSlips
         }
 
         # ----------------------------------------------------------------------
