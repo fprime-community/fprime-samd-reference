@@ -26,22 +26,6 @@ Samd21::PassiveRateGroupDriver::DividerSet rateGroupDivisors{{{1, 0}, {8, 0}, {8
 // reference topology sets each token to zero as these contexts are unused in this project.
 const Svc::PassiveRateGroup::ContextArray rgContext = {};
 
-namespace Samd21 {
-// Called by the assert hook (fprime-samd Overrides/reset_assert_hook.cpp) to get a FATAL report off the board before
-// the reset. It runs with the system already declared untrustworthy, so it goes straight out of the synchronous framer
-// rather than through the queued downlink pipeline.
-void sendFatalPacket(Fw::ComBuffer& data) {
-    fatalFramer.sendFatalPacket(data);
-}
-
-// Optional out-of-band last gasp, used when even the FATAL packet path cannot be trusted. This board has no second
-// channel, so it is a no-op: the FATAL packet above carries the report.
-void sendBailFrame(FILE_NAME_ARG file, FwSizeType lineNo) {
-    (void)file;
-    (void)lineNo;
-}
-}  // namespace Samd21
-
 /**
  * \brief configure/setup components in project-specific way
  *

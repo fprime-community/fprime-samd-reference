@@ -179,8 +179,10 @@ Uplink: DMA channel 1 fills 256 B buffers circularly → `comDriver.schedIn` pub
 partial data at 8 Hz → `comStub` → `frameAccumulator` → `deframer` → `fprimeRouter` →
 `cmdDisp`.
 
-FATAL bypasses all of it: `fatalFramer.drvSendOut -> comDriver.sendSync` blocks until the
-bytes are out, then `fatalHandler` resets the MCU.
+FATAL bypasses all of it: on a failed assertion `fatalHandler.fatalOut -> fatalFramer ->
+comDriver.sendSync` blocks until the `AssertionFailed` packet is out (repeated
+`FatalHandlerConfig::PACKET_REPEAT` times), then `fatalHandler` resets the MCU. The assert hook
+is the link-time `Samd21_AssertHook_FatalHandler`, chosen by the samd21 platform.
 
 **Telemetry is ground-polled in this deployment.** `tlm.pktSendIn` is not connected to
 anything, so packets only leave on the `SEND_PKT(id)` command. Channel writes accumulate in

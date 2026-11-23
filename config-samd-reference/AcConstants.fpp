@@ -65,39 +65,11 @@ constant DpWriterNumProcPorts = 5
 @ use FW_FILENAME_ASSERT; AssertFatalAdapter events there keep the last 16 characters of the path.
 constant FileNameStringSize = 16
 
-module Samd21 {
-    struct FatalData {
-        file: U32,
-        lineNo: U32,
-        numArgs: FwSizeStoreType,
-        arg1: I32,
-        arg2: I32,
-        arg3: I32,
-        arg4: I32,
-        arg5: I32,
-        arg6: I32,
-    }
-
-    struct FatalTime {
-        timeBase: TimeBase  @< basis of time (defined by system)
-        timeContext: FwTimeContextStoreType  @< user settable value. Could be reboot count, node, etc
-        seconds: U32  @< seconds portion of Time
-        useconds: U32  @< microseconds portion of Time
-    }
-
-    struct FatalPacket {
-        $type: ComCfg.Apid
-        $id: FwEventIdType,
-        $time: FatalTime,
-        data: FatalData,
-    } default {
-        $type = ComCfg.Apid.FW_PACKET_LOG,
-        $id = 0x0,
-    }
-}
-
 @ The size of an assert text string
-constant FwAssertTextSize = sizeof(Samd21.FatalPacket)
+@ Sized to the Samd21.FatalHandler AssertionFailed event packet: the Fw::LogPacket
+@ header (descriptor, event ID, Fw::Time) followed by file, lineNo, numArgs and six I32
+@ arguments. FatalHandler static_asserts the packet fits.
+constant FwAssertTextSize = sizeof(FwPacketDescriptorType) + sizeof(FwEventIdType) + sizeof(FwTimeBaseStoreType) + sizeof(FwTimeContextStoreType) + 2 * sizeof(U32) + 2 * sizeof(U32) + sizeof(FwSizeStoreType) + 6 * sizeof(I32)
 
 @ The size of a file name in an AssertFatalAdapter event (leading-truncation)
 @ Note: File names in assertion failures are also truncated by
