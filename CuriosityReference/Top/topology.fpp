@@ -189,12 +189,14 @@ module CuriosityReference {
             rg10s.RateGroupMemberOut[0]                           -> fwHealth.schedIn
         }
 
-        @ FATAL path. fatalFramer writes straight out of comDriver.sendSync, bypassing
-        @ the queued downlink pipeline, because a FATAL report has to reach the ground
-        @ from inside the assert hook -- with the rest of the system already declared
-        @ untrustworthy.
+        @ FATAL path. On a failed assertion fatalHandler sends its AssertionFailed
+        @ packet through fatalFramer straight out of comDriver.sendSync, bypassing the
+        @ queued downlink pipeline, because the report has to reach the ground from
+        @ inside the assert hook -- with interrupts off and the rest of the system
+        @ already declared untrustworthy.
         connections FaultProtection {
             downlink.FatalAnnounce -> fatalHandler.FatalReceive
+            fatalHandler.fatalOut  -> fatalFramer.comPacketIn
             fatalFramer.drvSendOut -> comDriver.sendSync
         }
 

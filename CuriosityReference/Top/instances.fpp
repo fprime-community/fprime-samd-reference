@@ -85,7 +85,7 @@ module CuriosityReference {
         """
     }
 
-    instance fatalHandler: Samd21.FatalHandler base id 0
+    instance fatalHandler: Samd21.FatalHandler base id 0x1010
     instance rg8Hz: Svc.PassiveRateGroup base id 0x1020  @< 8Hz frequency
     instance rg1Hz: Svc.PassiveRateGroup base id 0x1030  @< 1Hz frequency
     instance rg10s: Svc.PassiveRateGroup base id 0x1040  @< 10s period

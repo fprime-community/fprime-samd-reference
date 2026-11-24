@@ -79,9 +79,8 @@ target_link_libraries("${FPRIME_CURRENT_MODULE}" PRIVATE
 # The topology library is whole-archived too, for a related archive-ordering reason.
 # libCuriosityReference_Top.a supplies definitions that fprime-samd libraries *later* in
 # the link line depend on: Samd21::StaticTlmPacketizer::writePoint and
-# Samd21::StaticCmdDispatcher::seqCmd_helper (emitted by the two build autocoders) and
-# Samd21::sendFatalPacket / sendBailFrame (called by the assert hook). A normal archive
-# is only searched for symbols that are already undefined when the linker reaches it, so
+# Samd21::StaticCmdDispatcher::seqCmd_helper (emitted by the two build autocoders). A
+# normal archive is only searched for symbols that are already undefined when the linker reaches it, so
 # without this those members would never be extracted.
 set_property(TARGET "${FPRIME_CURRENT_MODULE}"
     PROPERTY "LINK_LIBRARY_OVERRIDE_${FPRIME_CURRENT_MODULE}_Top" WHOLE_ARCHIVE)
