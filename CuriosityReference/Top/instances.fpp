@@ -66,7 +66,7 @@ module CuriosityReference {
 
     instance comStub: Svc.ComStub base id FixedBaseIds.NO_DICTIONARY
     instance fatalFramer: Samd21.SyncFramer base id FixedBaseIds.NO_DICTIONARY
-    instance downlink: Samd21.PassiveDownlink base id FixedBaseIds.NO_DICTIONARY
+    instance downlink: Samd21.PassiveEventManager base id FixedBaseIds.NO_DICTIONARY
     instance cycler: Svc.PassiveCycler base id FixedBaseIds.NO_DICTIONARY
 
     @ Realtime clock driven rate driver, puts the CPU to sleep in-between cycles
