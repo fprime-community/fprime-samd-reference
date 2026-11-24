@@ -32,7 +32,7 @@ the SAMD21 External Interrupt Controller handler. Everything reachable from
    own `IN` register.
 2. `log_ACTIVITY_LO_LevelTransitioned(state)` — this is the problem. It calls
    `timeCaller` (`Samd21::Samd21Time`, an RTC counter read — safe), then pushes an
-   `Fw::LogBuffer` through `Samd21::PassiveDownlink`, which serializes an
+   `Fw::LogBuffer` through `Samd21::PassiveEventManager`, which serializes an
    `Fw::LogPacket` into a stack `Fw::ComBuffer` and calls
    `Samd21::Framer::comPacketQueueIn_handler`.
 

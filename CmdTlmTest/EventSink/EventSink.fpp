@@ -1,5 +1,5 @@
 module CmdTlmTest {
-    @ Minimal event receiver, standing in for Samd21.PassiveDownlink's
+    @ Minimal event receiver, standing in for Samd21.PassiveEventManager's
     @ LogRecv port so the topology's `event connections` pattern has a
     @ target. Records the most recent event ID and a running count instead of
     @ packetizing, so tests can assert dispatch-level events (e.g.
